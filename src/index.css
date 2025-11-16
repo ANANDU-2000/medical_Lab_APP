@@ -5,58 +5,60 @@
 }
 
 :root {
-  /* Medical Lab Brand Colors */
-  --primary-medical: #00897b;
-  --primary-dark: #00695c;
-  --primary-light: #4db6ac;
-  --accent-red: #e53935;
-  --accent-blue: #1e88e5;
+  /* Minimal Medical Lab Brand Colors */
+  --primary-medical: #00bfa5;
+  --primary-dark: #00897b;
+  --primary-light: #5eead4;
+  --accent-coral: #ff6b6b;
+  --accent-blue: #4fc3f7;
   
-  /* Neutral Colors - Clean medical aesthetic */
+  /* Minimalist Neutral Colors */
   --bg-primary: #ffffff;
-  --bg-secondary: #f8f9fa;
-  --bg-tertiary: #eceff1;
-  --bg-accent: #e0f2f1;
+  --bg-secondary: #fafbfc;
+  --bg-tertiary: #f5f7fa;
+  --bg-accent: #f0fdfa;
   
-  /* Text Colors - Professional medical palette */
-  --text-primary: #263238;
-  --text-secondary: #546e7a;
-  --text-tertiary: #78909c;
-  --text-light: #90a4ae;
+  /* Clean Text Palette */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-tertiary: #94a3b8;
+  --text-light: #cbd5e1;
   
-  /* Medical Accent Colors */
-  --success: #43a047;
-  --warning: #fb8c00;
-  --error: #e53935;
-  --info: #039be5;
+  /* Minimal Medical Accents */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #06b6d4;
   
-  /* Borders - Clean medical borders */
-  --border-light: #eceff1;
-  --border-medium: #cfd8dc;
-  --border-accent: #b2dfdb;
+  /* Subtle Borders */
+  --border-light: #f1f5f9;
+  --border-medium: #e2e8f0;
+  --border-accent: #d1fae5;
   
-  /* Shadows - Soft professional shadows */
-  --shadow-sm: 0 2px 4px rgba(0, 137, 123, 0.08);
-  --shadow-md: 0 4px 12px rgba(0, 137, 123, 0.12);
-  --shadow-lg: 0 8px 24px rgba(0, 137, 123, 0.15);
-  --shadow-xl: 0 12px 32px rgba(0, 137, 123, 0.18);
+  /* Clean Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   
-  /* Spacing */
+  /* Minimal Spacing */
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
   --spacing-md: 1rem;
   --spacing-lg: 1.5rem;
   --spacing-xl: 2rem;
   --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
   
-  /* Border Radius - Modern medical design */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  /* Modern Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
   
   /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
 body {
