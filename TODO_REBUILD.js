@@ -55,21 +55,21 @@ export const TODO_LIST = [
     id: 8,
     title: 'Implement Auto High/Low Detection',
     priority: 'HIGH',
-    status: 'PENDING',
+    status: 'COMPLETE',
     description: 'Compare test values against reference ranges, return HIGH (red), LOW (blue), or NORMAL (black)'
   },
   {
     id: 9,
     title: 'Add Dropdown/Text Input Support',
     priority: 'HIGH',
-    status: 'PENDING',
+    status: 'COMPLETE',
     description: 'For urine tests: dropdowns for Protein, Glucose, Ketone. Text inputs for Colour, Appearance, Casts, Crystals'
   },
   {
     id: 10,
     title: 'Build Staff Dashboard',
     priority: 'HIGH',
-    status: 'PENDING',
+    status: 'COMPLETE',
     description: 'Show Add Patient, Pending Patients, Completed Reports, Today Count. Simple, fast, staff-friendly'
   },
   {
@@ -125,7 +125,7 @@ export const TODO_LIST = [
     id: 18,
     title: 'Add WhatsApp Share Functionality',
     priority: 'MEDIUM',
-    status: 'PENDING',
+    status: 'COMPLETE',
     description: 'Use Web Share API to share PDF via WhatsApp. Free, no API needed'
   },
   {
@@ -139,7 +139,7 @@ export const TODO_LIST = [
     id: 20,
     title: 'Build Print Functionality',
     priority: 'MEDIUM',
-    status: 'PENDING',
+    status: 'COMPLETE',
     description: 'Print-optimized CSS, proper page breaks, professional layout'
   },
   {
