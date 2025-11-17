@@ -8,7 +8,9 @@ import {
   LogOut,
   Menu,
   X,
-  Package
+  Package,
+  Bell,
+  UserCircle
 } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import './Layout.css';
@@ -37,62 +39,49 @@ const Layout = () => {
 
   return (
     <div className="layout">
-      {/* Sidebar */}
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''} ${sidebarExpanded ? 'expanded' : 'collapsed'}`}>
-        <div className="sidebar-header">
-          <h2 className="sidebar-title">{sidebarExpanded && 'HEALit Med Lab'}</h2>
-          <button className="sidebar-toggle" onClick={() => setSidebarExpanded(!sidebarExpanded)}>
-            <Menu size={24} />
-          </button>
-          <button className="sidebar-close" onClick={() => setSidebarOpen(false)}>
-            <X size={24} />
-          </button>
-        </div>
-        
-        <nav className="sidebar-nav">
-          {filteredMenu.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => {
-                navigate(item.path);
-                setSidebarOpen(false);
-              }}
-              className={`sidebar-item ${location.pathname === item.path ? 'active' : ''}`}
-              title={item.label}
-            >
-              <item.icon size={20} />
-              <span className="sidebar-label">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-        
-        <div className="sidebar-footer">
-          <div className="user-info">
-            <div className="user-avatar">{user?.name?.charAt(0) || 'U'}</div>
-            {sidebarExpanded && (
-              <div className="user-details">
-                <div className="user-name">{user?.name || 'User'}</div>
-                <div className="user-role">{role === 'admin' ? 'Admin' : 'Staff'}</div>
-              </div>
-            )}
+      {/* Main Content - Full Width */}
+      <div className="main-content full-width">
+        {/* Compact Top Nav Header */}
+        <header className="top-nav">
+          {/* Left: Logo + App Name + Quick Nav */}
+          <div className="nav-left">
+            <div className="nav-logo">
+              <span className="logo-icon">🧬</span>
+              <span className="app-name">HEALit Med Lab</span>
+            </div>
+            
+            {/* Quick Navigation */}
+            <div className="quick-nav">
+              {filteredMenu.map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className={`quick-nav-btn ${location.pathname === item.path ? 'active' : ''}`}
+                  title={item.label}
+                >
+                  <item.icon size={16} />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
-          <button className="logout-btn" onClick={handleLogout} title="Logout">
-            <LogOut size={20} />
-            <span className="logout-label">Logout</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="main-content">
-        {/* Header */}
-        <header className="header">
-          <button className="menu-btn" onClick={() => setSidebarOpen(true)}>
-            <Menu size={24} />
-          </button>
-          <h1 className="page-title">
-            {filteredMenu.find(item => item.path === location.pathname)?.label || 'Dashboard'}
-          </h1>
+          
+          {/* Right: User Actions */}
+          <div className="nav-right">
+            <button className="nav-icon-btn" title="Notifications">
+              <Bell size={18} />
+              <span className="notification-badge">3</span>
+            </button>
+            <button className="nav-icon-btn" onClick={() => navigate('/settings')} title="Settings">
+              <SettingsIcon size={18} />
+            </button>
+            <button className="nav-icon-btn" title="Profile">
+              <UserCircle size={18} />
+            </button>
+            <button className="nav-icon-btn logout" onClick={handleLogout} title="Logout">
+              <LogOut size={18} />
+            </button>
+          </div>
         </header>
 
         {/* Page Content */}
@@ -100,11 +89,6 @@ const Layout = () => {
           <Outlet />
         </main>
       </div>
-
-      {/* Sidebar Overlay */}
-      {sidebarOpen && (
-        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
-      )}
     </div>
   );
 };

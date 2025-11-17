@@ -1,36 +1,31 @@
 /**
- * AddPatientPage.jsx
+ * AddPatientPage.jsx - COMPACT & IMPROVED VERSION
  * 
  * ALL-IN-ONE Patient Registration & Test Selection Page
  * 
- * This is the first step in the streamlined patient workflow:
- * 1. AddPatientPage (this) - Register patient + Select profile + Edit tests
- * 2. SampleTimePage - Enter sample collection/received times
- * 3. ResultEntryPage - Enter test results
- * 4. PDF Generation - Generate report and invoice
- * 
- * FEATURES:
- * - Left column: Patient details form (Name, Age, Gender, Phone, Address, Referred By)
- * - Right column: Profile selection + Test list table
- * - Integrated test search (SearchAddTest component)
- * - Manual custom test creation modal
- * - Inline test editing (name, unit, price, references)
- * - Include/exclude/remove tests
- * - Auto-calculate subtotal and total with discount
- * - Create immutable test snapshots on visit creation
- * - Permission-based UI (Admin vs Staff)
+ * IMPROVEMENTS:
+ * - Compact left form (380px) with smaller fields
+ * - Right side shows profile + test table with descriptions
+ * - Quick "+ Add Test" button with instant search modal
+ * - Inline price editing for all tests (admin/staff)
+ * - Easy test restoration if accidentally deleted
+ * - Live price calculation with discount
  * 
  * WORKFLOW:
- * User fills patient info → Selects profile → Tests auto-load → User can search/add/edit tests
- * → Click "Continue" → Creates patient + visit with test snapshots → Navigate to Sample Time page
+ * 1. Fill patient info (compact form)
+ * 2. Select profile → Tests load with descriptions
+ * 3. Edit prices inline
+ * 4. Delete test by mistake → Click "+" → Search → Add back
+ * 5. Apply discount → See total
+ * 6. Continue to Sample Time
  * 
- * @version 2.0
+ * @version 3.0 - Compact & Efficient
  * @since 2025-11-17
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Phone, UserCheck, Plus, X, AlertCircle, Search, Edit3 } from 'lucide-react';
+import { User, Phone, UserCheck, Plus, X, AlertCircle, Search, Edit3, Package, ArrowLeft } from 'lucide-react';
 import { addPatient, getProfiles, addProfile, getProfileById, createVisit, getProfileWithTests, searchTests, addTestToMaster, getSettings } from '../shared/dataService';
 import { useAuthStore } from '../../store';
 import { getCurrentUser } from '../../services/authService';
@@ -84,6 +79,12 @@ const AddPatientPage = () => {
     description: ''
   });
   
+  // Quick Add Test Modal State
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  
+  // Form validation and submission state
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -91,6 +92,27 @@ const AddPatientPage = () => {
   const settings = getSettings();
   const canEditPrice = role === 'admin' || settings.allowStaffEditPrice;
   const canCreateCustom = role === 'admin' || settings.allowManualTests;
+  
+  // Quick add test from search
+  const handleQuickAddTest = (test) => {
+    // Check if test already added
+    const exists = tests.find(t => t.testId === test.testId);
+    if (exists) {
+      toast.error(`${test.name} is already in the list`);
+      return;
+    }
+
+    const newTestEntry = {
+      ...test,
+      id: `${test.testId}_${Date.now()}`,
+      included: true,
+      description: test.description || test.refText || '' // Add description
+    };
+    setTests([...tests, newTestEntry]);
+    toast.success(`${test.name} added successfully`);
+    setShowQuickAdd(false);
+    setSearchQuery('');
+  };
 
   // Auto-focus on Full Name field
   useEffect(() => {
@@ -101,6 +123,16 @@ const AddPatientPage = () => {
   useEffect(() => {
     setProfiles(getProfiles());
   }, []);
+  
+  // Search tests when search query changes
+  useEffect(() => {
+    if (searchQuery.trim().length >= 2) {
+      const results = searchTests(searchQuery);
+      setSearchResults(results.slice(0, 10)); // Limit to 10 results
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
   
   // Handle profile selection
   useEffect(() => {
@@ -116,7 +148,8 @@ const AddPatientPage = () => {
         const testsWithIncluded = profileWithTests.tests.map((test, idx) => ({
           ...test,
           id: `${test.testId}_${idx}`,
-          included: true
+          included: true,
+          description: test.description || test.refText || '' // Add description field
         }));
         setTests(testsWithIncluded);
       }
@@ -360,322 +393,281 @@ const AddPatientPage = () => {
 
   return (
     <div className="add-patient-page">
-      {/* Page Header */}
-      <div className="page-header-modern">
-        <div>
-          <h1>Add New Patient</h1>
-          <p className="subtitle">Register patient and select test profile</p>
-        </div>
-      </div>
+      {/* Back Button */}
+      <button 
+        type="button"
+        onClick={() => navigate(-1)} 
+        className="btn-back"
+      >
+        <ArrowLeft size={18} />
+        Back
+      </button>
 
       {/* Two-Column Layout */}
       <form onSubmit={handleSubmit} className="two-column-layout">
-        {/* LEFT CARD - Patient Details */}
-        <div className="card-modern patient-details-card">
-          <div className="card-header-blue">
-            <User size={20} />
-            <h3>Patient Details</h3>
-          </div>
-          
-          <div className="card-body">
-            {/* Full Name */}
-            <div className="form-group-modern">
-              <label className="label-blue">Full Name *</label>
-              <input
-                ref={nameInputRef}
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Enter patient full name"
-                className={`input-modern ${errors.name ? 'input-error' : ''}`}
-                autoComplete="off"
-              />
-              {errors.name && (
-                <span className="error-message">
-                  <AlertCircle size={14} />
-                  {errors.name}
-                </span>
-              )}
+        {/* LEFT COLUMN - Patient Details & Profile */}
+        <div className="left-column">
+          {/* Patient Details Card */}
+          <div className="card-compact">
+            <div className="card-header-compact">
+              <User size={16} />
+              <h3>Patient Info</h3>
             </div>
-
-            {/* Age & Gender Row */}
-            <div className="form-row-modern">
-              <div className="form-group-modern">
-                <label className="label-blue">Age *</label>
+            
+            <div className="card-body-compact">
+              {/* Name */}
+              <div className="form-group-compact">
+                <label>Name *</label>
                 <input
-                  type="number"
-                  name="age"
-                  value={formData.age}
+                  ref={nameInputRef}
+                  type="text"
+                  name="name"
+                  value={formData.name}
                   onChange={handleChange}
-                  placeholder="Age"
-                  className={`input-modern ${errors.age ? 'input-error' : ''}`}
-                  min="0"
-                  max="120"
+                  placeholder="Full name"
+                  className={`input-compact ${errors.name ? 'input-error' : ''}`}
                 />
-                {errors.age && (
-                  <span className="error-message">
-                    <AlertCircle size={14} />
-                    {errors.age}
-                  </span>
-                )}
+                {errors.name && <span className="error-text">{errors.name}</span>}
               </div>
 
-              <div className="form-group-modern">
-                <label className="label-blue">Gender *</label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  className="input-modern"
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
+              {/* Age & Gender */}
+              <div className="form-row-compact">
+                <div className="form-group-compact">
+                  <label>Age *</label>
+                  <input
+                    type="number"
+                    name="age"
+                    value={formData.age}
+                    onChange={handleChange}
+                    placeholder="Age"
+                    className={`input-compact ${errors.age ? 'input-error' : ''}`}
+                  />
+                  {errors.age && <span className="error-text">{errors.age}</span>}
+                </div>
+                <div className="form-group-compact">
+                  <label>Gender *</label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleChange}
+                    className="input-compact"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
               </div>
-            </div>
 
-            {/* Phone Number */}
-            <div className="form-group-modern">
-              <label className="label-blue">Phone Number *</label>
-              <div className="input-with-icon-modern">
-                <Phone size={18} className="input-icon" />
+              {/* Phone */}
+              <div className="form-group-compact">
+                <label>Phone *</label>
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="10-digit mobile number"
-                  className={`input-modern with-icon ${errors.phone ? 'input-error' : ''}`}
+                  placeholder="10-digit number"
+                  className={`input-compact ${errors.phone ? 'input-error' : ''}`}
                   maxLength="10"
                 />
+                {errors.phone && <span className="error-text">{errors.phone}</span>}
               </div>
-              {errors.phone && (
-                <span className="error-message">
-                  <AlertCircle size={14} />
-                  {errors.phone}
-                </span>
-              )}
-            </div>
 
-            {/* Address */}
-            <div className="form-group-modern">
-              <label className="label-blue">Address</label>
-              <textarea
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                placeholder="Enter full address (optional)"
-                className="input-modern textarea-modern"
-                rows="3"
-              />
-            </div>
+              {/* Address */}
+              <div className="form-group-compact">
+                <label>Address</label>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Address (optional)"
+                  className="input-compact textarea-compact"
+                  rows="2"
+                />
+              </div>
 
-            {/* Referred By */}
-            <div className="form-group-modern">
-              <label className="label-blue">Referred By</label>
-              <div className="input-with-icon-modern">
-                <UserCheck size={18} className="input-icon" />
+              {/* Referred By */}
+              <div className="form-group-compact">
+                <label>Referred By</label>
                 <input
                   type="text"
                   name="referredBy"
                   value={formData.referredBy}
                   onChange={handleChange}
-                  placeholder="Doctor name (optional)"
-                  className="input-modern with-icon"
+                  placeholder="Doctor name"
+                  className="input-compact"
                 />
               </div>
             </div>
           </div>
-        </div>
 
-        {/* RIGHT CARD - Profile Selection & Tests */}
-        <div className="card-modern profile-selection-card">
-          <div className="card-header-blue">
-            <h3>Test Profile & Tests</h3>
-          </div>
-          
-          <div className="card-body">
-            {/* Profile Dropdown */}
-            <div className="form-group-modern">
-              <label className="label-blue">Select Profile *</label>
-              <select
-                value={selectedProfileId}
-                onChange={(e) => setSelectedProfileId(e.target.value)}
-                className={`input-modern profile-select ${errors.profile ? 'input-error' : ''}`}
-              >
-                <option value="">Select Profile ▼</option>
-                <option value="" disabled>────────────────</option>
-                {profiles.map((profile) => (
-                  <option key={profile.profileId} value={profile.profileId}>
-                    {profile.name}
-                  </option>
-                ))}
-              </select>
-              {errors.profile && (
-                <span className="error-message">
-                  <AlertCircle size={14} />
-                  {errors.profile}
-                </span>
-              )}
+          {/* Profile Selection Card */}
+          <div className="card-compact">
+            <div className="card-header-compact">
+              <Package size={16} />
+              <h3>Test Profile</h3>
             </div>
+            
+            <div className="card-body-compact">
+              <div className="form-group-compact">
+                <label>Select Profile *</label>
+                <select
+                  value={selectedProfileId}
+                  onChange={(e) => setSelectedProfileId(e.target.value)}
+                  className={`input-compact ${errors.profile ? 'input-error' : ''}`}
+                >
+                  <option value="">Choose Profile...</option>
+                  {profiles.map((profile) => (
+                    <option key={profile.profileId} value={profile.profileId}>
+                      {profile.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.profile && <span className="error-text">{errors.profile}</span>}
+              </div>
 
-            {/* Profile Badge */}
-            {selectedProfile && (
-              <div className="profile-badge-modern">
-                <div className="badge-icon">✓</div>
-                <div className="badge-content">
-                  <h4>{selectedProfile.name}</h4>
+              {/* Show test count when profile selected */}
+              {selectedProfile && (
+                <div className="profile-info">
+                  <div className="profile-badge">
+                    <strong>{selectedProfile.name}</strong>
+                    <span className="test-count">{tests.filter(t => t.included).length} tests</span>
+                  </div>
                   {selectedProfile.description && (
-                    <p>{selectedProfile.description}</p>
+                    <p className="profile-desc">{selectedProfile.description}</p>
                   )}
                 </div>
-              </div>
-            )}
-
-            {/* Tests Table */}
-            {tests.length > 0 && (
-              <>
-                <div className="tests-section-header">
-                  <h4>Tests in Profile ({tests.filter(t => t.included).length} selected)</h4>
-                  <div className="test-actions-row">
-                    <SearchAddTest 
-                      onAddTest={handleAddTestFromSearch}
-                      onAddManual={() => setShowManualAdd(true)}
-                    />
-                  </div>
-                </div>
-                <div className="tests-table-container">
-                  <table className="tests-table-modern">
-                    <thead>
-                      <tr>
-                        <th width="40">Include</th>
-                        <th>Test Name</th>
-                        <th width="100">Unit</th>
-                        <th width="120">Price (₹)</th>
-                        <th width="60">Edit Ref</th>
-                        <th width="60">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tests.map((test) => (
-                        <tr key={test.id} className={!test.included ? 'test-excluded' : ''}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={test.included}
-                              onChange={() => handleToggleInclude(test.id)}
-                              className="checkbox-modern"
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              value={test.name}
-                              onChange={(e) => handleTestFieldChange(test.id, 'name', e.target.value)}
-                              className="test-name-input"
-                              disabled={!canEditPrice}
-                            />
-                            {test.refText && (
-                              <div className="test-ref-text">{test.refText}</div>
-                            )}
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              value={test.unit || ''}
-                              onChange={(e) => handleTestFieldChange(test.id, 'unit', e.target.value)}
-                              className="unit-input-small"
-                              placeholder="Unit"
-                              disabled={!canEditPrice}
-                            />
-                          </td>
-                          <td>
-                            {canEditPrice ? (
-                              <input
-                                type="number"
-                                value={test.price || 0}
-                                onChange={(e) => handleTestPriceChange(test.id, e.target.value)}
-                                className="price-input-small"
-                                min="0"
-                                step="0.01"
-                              />
-                            ) : (
-                              <span>₹{test.price || 0}</span>
-                            )}
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              onClick={() => setShowManualAdd(true)}
-                              className="btn-edit-ref"
-                              title="Edit reference ranges"
-                            >
-                              <Edit3 size={14} />
-                            </button>
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveTest(test.id)}
-                              className="btn-remove-test"
-                              title="Remove test"
-                            >
-                              <X size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Price Summary */}
-                <div className="price-summary-modern">
-                  <div className="summary-row">
-                    <span>Subtotal:</span>
-                    <span className="summary-value">₹{calculateSubtotal().toFixed(2)}</span>
-                  </div>
-                  <div className="summary-row">
-                    <span>Discount (%):</span>
-                    <input
-                      type="number"
-                      value={discount}
-                      onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                      className="discount-input"
-                      min="0"
-                      max="100"
-                      step="1"
-                      disabled={!canEditPrice}
-                    />
-                  </div>
-                  <div className="summary-row total-row">
-                    <span><strong>Total Amount:</strong></span>
-                    <span className="summary-total">₹{calculateTotal().toFixed(2)}</span>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Create New Profile Button */}
-            {!selectedProfileId && (
-              <Button 
-                type="button"
-                variant="outline" 
-                onClick={() => setShowCreateProfile(true)}
-                className="create-profile-btn"
-                icon={Plus}
-              >
-                Create New Profile
-              </Button>
-            )}
+              )}
+            </div>
           </div>
+        </div>
+
+        {/* RIGHT COLUMN - Full Width Test Table */}
+        <div className="right-column">
+          {tests.length > 0 ? (
+            <div className="card-compact full-height">
+              <div className="card-header-compact">
+                <h3>Tests & Pricing ({tests.filter(t => t.included).length} selected)</h3>
+              </div>
+              
+              <div className="tests-table-wrapper">
+                <table className="tests-table-full">
+                  <thead>
+                    <tr>
+                      <th width="40">✓</th>
+                      <th width="30%">Test Name</th>
+                      <th width="35%">Description</th>
+                      <th width="10%">Unit</th>
+                      <th width="15%">Price (₹)</th>
+                      <th width="60">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tests.map((test) => (
+                      <tr key={test.id} className={!test.included ? 'row-disabled' : ''}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={test.included}
+                            onChange={() => handleToggleInclude(test.id)}
+                            className="checkbox-modern"
+                          />
+                        </td>
+                        <td>
+                          <div className="test-name-cell">
+                            <strong>{test.name}</strong>
+                            {test.code && (
+                              <span className="test-code">#{test.code}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            value={test.description || test.refText || ''}
+                            onChange={(e) => handleTestFieldChange(test.id, 'description', e.target.value)}
+                            className="cell-input"
+                            placeholder="Test description"
+                            disabled={!canEditPrice}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            value={test.unit || ''}
+                            onChange={(e) => handleTestFieldChange(test.id, 'unit', e.target.value)}
+                            className="cell-input"
+                            placeholder="Unit"
+                            disabled={!canEditPrice}
+                          />
+                        </td>
+                        <td>
+                          {canEditPrice ? (
+                            <input
+                              type="number"
+                              value={test.price || 0}
+                              onChange={(e) => handleTestPriceChange(test.id, e.target.value)}
+                              className="cell-input price-input"
+                              min="0"
+                              step="0.01"
+                            />
+                          ) : (
+                            <span className="price-display">₹{test.price || 0}</span>
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTest(test.id)}
+                            className="btn-remove"
+                            title="Remove test"
+                          >
+                            <X size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Price Summary */}
+              <div className="price-summary-compact">
+                <div className="summary-row">
+                  <span>Subtotal:</span>
+                  <span className="summary-value">₹{calculateSubtotal().toFixed(2)}</span>
+                </div>
+                <div className="summary-row">
+                  <span>Discount (%):</span>
+                  <input
+                    type="number"
+                    value={discount}
+                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                    className="discount-input"
+                    min="0"
+                    max="100"
+                    disabled={!canEditPrice}
+                  />
+                </div>
+                <div className="summary-row total-row">
+                  <span><strong>Total:</strong></span>
+                  <span className="summary-total">₹{calculateTotal().toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <Package size={48} className="empty-icon" />
+              <h3>Select a Profile</h3>
+              <p>Choose a test profile from the left to view and manage tests</p>
+            </div>
+          )}
         </div>
       </form>
 
       {/* Action Buttons */}
-      <div className="form-actions-modern">
+      <div className="form-actions-compact">
         <Button 
           type="button"
           variant="outline" 
@@ -685,12 +677,12 @@ const AddPatientPage = () => {
           Cancel
         </Button>
         <Button 
-          type="submit"
+          type="button"
           variant="primary" 
           onClick={handleSubmit}
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Creating...' : 'Continue → Sample Time Page'}
+          {isSubmitting ? 'Creating...' : 'Continue → Sample Time'}
         </Button>
       </div>
 
@@ -899,6 +891,75 @@ const AddPatientPage = () => {
                 <Plus size={18} />
                 Add Test
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Quick Add Test Search Modal */}
+      {showQuickAdd && (
+        <div className="modal-overlay-modern" onClick={() => setShowQuickAdd(false)}>
+          <div className="modal-content-modern quick-add-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header-modern">
+              <h3>Quick Add Test</h3>
+              <button 
+                type="button"
+                onClick={() => setShowQuickAdd(false)} 
+                className="close-button-modern"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body-modern">
+              {/* Search Input */}
+              <div className="search-input-container">
+                <Search size={18} className="search-input-icon" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-input-modal"
+                  placeholder="Search by test name or code..."
+                  autoFocus
+                />
+              </div>
+              
+              {/* Search Results */}
+              <div className="search-results">
+                {searchQuery.trim().length < 2 ? (
+                  <div className="search-hint">
+                    💡 Type at least 2 characters to search
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <div className="no-results">
+                    No tests found for "{searchQuery}"
+                  </div>
+                ) : (
+                  searchResults.map((test) => (
+                    <div
+                      key={test.testId}
+                      className="search-result-item"
+                      onClick={() => handleQuickAddTest(test)}
+                    >
+                      <div className="search-result-info">
+                        <div className="search-result-name">{test.name}</div>
+                        <div className="search-result-details">
+                          {test.code && <span>Code: {test.code}</span>}
+                          {test.unit && <span>Unit: {test.unit}</span>}
+                          {test.category && <span>{test.category}</span>}
+                        </div>
+                      </div>
+                      <div className="search-result-price">
+                        ₹{test.price || 0}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <p className="info-text-modern">
+                💡 Click on any test to add it to the list
+              </p>
             </div>
           </div>
         </div>
