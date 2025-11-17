@@ -1,12 +1,20 @@
-import React, { useMemo } from 'react';
-import { useFinancialStore, useTestResultStore } from '../../../store';
+import React, { useMemo, useState, useEffect } from 'react';
+import { getProfileTemplate } from '../../../features/profile-manager/profileTemplates';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import './ProfitLoss.css';
 
 const ProfitLoss = () => {
-  const { expenses, revenue } = useFinancialStore();
-  const { results } = useTestResultStore();
+  const [expenses, setExpenses] = useState([]);
+  const [patients, setPatients] = useState([]);
+
+  // Load data from localStorage
+  useEffect(() => {
+    const storedExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+    const storedPatients = JSON.parse(localStorage.getItem('patients') || '[]');
+    setExpenses(storedExpenses);
+    setPatients(storedPatients);
+  }, []);
 
   const today = new Date();
   const startOfToday = new Date(today.setHours(0, 0, 0, 0));
@@ -15,23 +23,29 @@ const ProfitLoss = () => {
   const startOfYear = new Date(today.getFullYear(), 0, 1);
 
   const calculateRevenue = (startDate, endDate = new Date()) => {
-    // Calculate from test results (assuming each test has a price)
-    const testRevenue = results
-      .filter(r => {
-        const resultDate = new Date(r.date || r.createdAt);
+    // Calculate from patient test snapshots (using package prices or individual test prices)
+    const testRevenue = patients
+      .filter(p => {
+        const resultDate = new Date(p.createdAt);
         return resultDate >= startDate && resultDate <= endDate;
       })
-      .reduce((sum, r) => sum + (r.totalPrice || 500), 0); // Default 500 if no price
+      .reduce((sum, p) => {
+        // If patient has a test snapshot, calculate revenue from it
+        if (p.testSnapshot && p.testSnapshot.length > 0) {
+          // If using package price, use that
+          if (p.usePackagePrice) {
+            const profile = getProfileTemplate(p.profileId);
+            return sum + (profile?.packagePrice || 0);
+          }
+          // Otherwise sum individual test prices
+          return sum + p.testSnapshot.reduce((testSum, test) => testSum + (test.price || 0), 0);
+        }
+        // Fallback to profile package price if no snapshot
+        const profile = getProfileTemplate(p.profileId);
+        return sum + (profile?.packagePrice || 0);
+      }, 0);
 
-    // Add any manual revenue entries
-    const manualRevenue = revenue
-      .filter(r => {
-        const revDate = new Date(r.date);
-        return revDate >= startDate && revDate <= endDate;
-      })
-      .reduce((sum, r) => sum + r.amount, 0);
-
-    return testRevenue + manualRevenue;
+    return testRevenue;
   };
 
   const calculateExpenses = (startDate, endDate = new Date()) => {
@@ -86,7 +100,7 @@ const ProfitLoss = () => {
     }
     
     return months;
-  }, [expenses, results, revenue]);
+  }, [expenses, patients]);
 
   const maxValue = Math.max(
     ...monthlyComparison.map(m => Math.max(m.revenue, m.expenses)),

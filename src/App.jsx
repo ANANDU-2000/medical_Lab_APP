@@ -2,19 +2,30 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store';
+import { initializeSeedData } from './features/shared/dataService';
+import { initializeAuthData } from './services/authService';
 
 // Pages
 import Login from './pages/Login/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Patients from './pages/Patients/Patients';
-import AddPatient from './pages/Patients/AddPatient';
 import PatientDetails from './pages/Patients/PatientDetails';
-import Results from './pages/Results/Results';
-import EnterResults from './pages/Results/EnterResults';
 import Financial from './pages/Financial/Financial';
 import Settings from './pages/Settings/Settings';
+
+// NEW Rebuilt Patient Flow
+import AddPatientPage from './features/patient/AddPatientPage';
+import SelectEditTestsPage from './features/tests/SelectEditTestsPage';
+import SampleTimePage from './features/results/SampleTimePage';
+import ResultEntryPage from './features/results/ResultEntryPage';
+
+// NEW Admin Pages (Latest)
+import FinancialManagement from './features/admin/financial-management/FinancialManagement';
+import AdminSettings from './features/admin/settings/AdminSettings';
+import TechniciansPage from './pages/Settings/TechniciansPage';
 import TestMaster from './pages/Admin/TestMaster';
 import ProfileManager from './pages/Admin/ProfileManager';
+
 import Layout from './components/Layout/Layout';
 
 // Protected Route Component
@@ -33,6 +44,16 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 };
 
 function App() {
+  // Initialize seed data on app load
+  useEffect(() => {
+    try {
+      initializeSeedData();
+      initializeAuthData();
+    } catch (error) {
+      console.error('Error initializing seed data:', error);
+    }
+  }, []);
+
   return (
     <BrowserRouter>
       <Toaster
@@ -61,8 +82,10 @@ function App() {
       />
       
       <Routes>
+        {/* Public Route - Login */}
         <Route path="/login" element={<Login />} />
         
+        {/* Protected Routes */}
         <Route
           path="/"
           element={
@@ -73,16 +96,41 @@ function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          
+          {/* Patients */}
           <Route path="patients" element={<Patients />} />
-          <Route path="patients/add" element={<AddPatient />} />
           <Route path="patients/:id" element={<PatientDetails />} />
-          <Route path="results" element={<Results />} />
-          <Route path="results/enter/:patientId" element={<EnterResults />} />
+          
+          {/* NEW PATIENT FLOW - Rebuilt Workflow */}
+          <Route path="patients/add-patient" element={<AddPatientPage />} />
+          <Route path="tests/:patientId" element={<SelectEditTestsPage />} />
+          <Route path="sample-times/:visitId" element={<SampleTimePage />} />
+          <Route path="results/:visitId" element={<ResultEntryPage />} />
+          
+          {/* Admin Only Routes */}
           <Route
             path="financial"
             element={
               <ProtectedRoute adminOnly>
                 <Financial />
+              </ProtectedRoute>
+            }
+          />
+          {/* NEW Financial Management Page (Latest) */}
+          <Route
+            path="admin/financial"
+            element={
+              <ProtectedRoute adminOnly>
+                <FinancialManagement />
+              </ProtectedRoute>
+            }
+          />
+          {/* NEW Admin Settings Page (Latest) */}
+          <Route
+            path="admin/settings"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminSettings />
               </ProtectedRoute>
             }
           />
@@ -95,6 +143,15 @@ function App() {
             }
           />
           <Route
+            path="settings/technicians"
+            element={
+              <ProtectedRoute adminOnly>
+                <TechniciansPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* NEW Test Master Page */}
+          <Route
             path="admin/test-master"
             element={
               <ProtectedRoute adminOnly>
@@ -102,6 +159,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* NEW Profile Manager Page */}
           <Route
             path="admin/profile-manager"
             element={
@@ -112,7 +170,8 @@ function App() {
           />
         </Route>
         
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Catch all - redirect to login if not authenticated, else dashboard */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

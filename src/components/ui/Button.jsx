@@ -13,6 +13,8 @@ const Button = ({
   loading = false,
   className = ''
 }) => {
+  const iconSize = size === 'small' || size === 'sm' ? 16 : size === 'large' || size === 'lg' ? 24 : 20;
+  
   return (
     <button
       type={type}
@@ -24,7 +26,7 @@ const Button = ({
         <span className="btn-loader"></span>
       ) : (
         <>
-          {Icon && <Icon className="btn-icon" size={size === 'small' ? 16 : size === 'large' ? 24 : 20} />}
+          {Icon && <Icon className="btn-icon" size={iconSize} />}
           <span>{children}</span>
         </>
       )}

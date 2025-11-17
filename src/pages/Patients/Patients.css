@@ -1,53 +1,203 @@
 .patients-page {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
+  padding: var(--space-4);
 }
 
 .search-box {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
+  gap: var(--space-3);
+  padding: var(--space-4);
   background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--spacing-lg);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-6);
+  border: 2px solid var(--border);
+  transition: var(--transition);
 }
 
-.search-box input {
+.search-box:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-icon {
+  color: var(--text-light);
+}
+
+.search-input {
   flex: 1;
   border: none;
   background: transparent;
+  font-size: 0.9375rem;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.search-input::placeholder {
+  color: var(--text-lighter);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+  gap: var(--space-4);
+}
+
+.empty-icon {
+  color: var(--text-lighter);
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.25rem;
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--text-light);
   font-size: 1rem;
 }
 
 .patients-table {
   overflow-x: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
 }
 
 .patients-table table {
   width: 100%;
   border-collapse: collapse;
+  background: var(--bg);
 }
 
 .patients-table th,
 .patients-table td {
-  padding: var(--spacing-md);
+  padding: var(--space-4);
   text-align: left;
 }
 
 .patients-table th {
   background: var(--bg-secondary);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text);
   font-size: 0.875rem;
   text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: 2px solid var(--border);
 }
 
-.patients-table tr {
-  border-bottom: 1px solid var(--border-light);
-  cursor: pointer;
+.patients-table th svg {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: var(--space-1);
+}
+
+.patients-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: var(--transition);
 }
 
 .patients-table tbody tr:hover {
-  background: var(--bg-tertiary);
+  background: var(--bg-secondary);
+}
+
+.patients-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+/* Table Cells */
+.patient-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.phone-cell {
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.profile-cell {
+}
+
+.profile-tag {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  background: var(--primary);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge.status-registered {
+  background: rgba(249, 115, 22, 0.1);
+  color: var(--warning);
+}
+
+.status-badge.status-results_entered {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary);
+}
+
+.status-badge.status-completed {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .patients-page {
+    padding: var(--space-3);
+  }
+
+  .patients-table {
+    overflow-x: scroll;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .patients-table table {
+    min-width: 800px;
+  }
 }

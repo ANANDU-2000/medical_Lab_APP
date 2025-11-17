@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogIn } from 'lucide-react';
+import { LogIn, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store';
 import Button from '../../components/ui/Button';
@@ -13,74 +13,145 @@ const Login = () => {
     email: '',
     password: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Demo credentials
-    if (formData.email === 'admin@thyrocare.com' && formData.password === 'admin123') {
-      login({
-        id: '1',
-        name: 'Awsin',
-        email: formData.email,
-        role: 'admin'
-      });
-      toast.success('Welcome back, Admin!');
-      navigate('/dashboard');
-    } else if (formData.email === 'staff@thyrocare.com' && formData.password === 'staff123') {
-      login({
-        id: '2',
-        name: 'Staff Member',
-        email: formData.email,
-        role: 'staff'
-      });
-      toast.success('Welcome back!');
-      navigate('/dashboard');
-    } else {
-      toast.error('Invalid credentials');
+    // Validation
+    const newErrors = {};
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    }
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    
+    setLoading(true);
+    setErrors({});
+    
+    try {
+      const result = await login(formData.email, formData.password);
+      
+      if (result.success) {
+        toast.success(`Welcome back, ${result.user.fullName}!`);
+        // Redirect based on role
+        navigate('/dashboard');
+      } else {
+        setErrors({ general: result.error || 'Invalid login credentials' });
+        toast.error(result.error || 'Invalid login credentials');
+      }
+    } catch (error) {
+      setErrors({ general: 'Login failed. Please try again.' });
+      toast.error('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="login-page">
       <div className="login-container">
-        <div className="login-header">
-          <h1>HEALit Med Laboratories</h1>
-          <p>Kunnathpeedika Centre</p>
-        </div>
-
-        <form className="login-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
-              placeholder="Enter your email"
-              required
-            />
+        <div className="login-card">
+          {/* Dual Logo Header */}
+          <div className="login-header">
+            <div className="logo-section">
+              <div className="logo-item">
+                <div className="logo-circle">🧬</div>
+                <span className="logo-text">HEALit</span>
+              </div>
+              <div className="logo-divider">+</div>
+              <div className="logo-item">
+                <div className="logo-circle">🔬</div>
+                <span className="logo-text">Thyrocare</span>
+              </div>
+            </div>
+            <h1>Laboratory Management System</h1>
+            <p className="subtitle">Kunnathpeedika Centre - Thrissur</p>
           </div>
 
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              placeholder="Enter your password"
-              required
-            />
+          <form className="login-form" onSubmit={handleSubmit}>
+            {errors.general && (
+              <div className="error-banner">
+                {errors.general}
+              </div>
+            )}
+
+            <div className="form-group">
+              <label>Email Address *</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => {
+                  setFormData({...formData, email: e.target.value});
+                  setErrors({...errors, email: ''});
+                }}
+                placeholder="Enter your email"
+                className={errors.email ? 'error' : ''}
+                disabled={loading}
+                autoComplete="email"
+              />
+              {errors.email && <span className="error-text">{errors.email}</span>}
+            </div>
+
+            <div className="form-group">
+              <label>Password *</label>
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={(e) => {
+                    setFormData({...formData, password: e.target.value});
+                    setErrors({...errors, password: ''});
+                  }}
+                  placeholder="Enter your password"
+                  className={errors.password ? 'error' : ''}
+                  disabled={loading}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex="-1"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {errors.password && <span className="error-text">{errors.password}</span>}
+            </div>
+
+            <Button type="submit" fullWidth icon={LogIn} disabled={loading}>
+              {loading ? 'Logging in...' : 'Login'}
+            </Button>
+
+            <div className="forgot-password">
+              <button type="button" className="forgot-link" disabled>
+                Forgot Password?
+              </button>
+            </div>
+          </form>
+
+          <div className="demo-credentials">
+            <p className="demo-title"><strong>Demo Credentials:</strong></p>
+            <div className="demo-list">
+              <div className="demo-item">
+                <span className="role-badge admin">Admin</span>
+                <span>admin@healit.com / admin123</span>
+              </div>
+              <div className="demo-item">
+                <span className="role-badge staff">Staff</span>
+                <span>staff@healit.com / staff123</span>
+              </div>
+            </div>
           </div>
-
-          <Button type="submit" fullWidth icon={LogIn}>
-            Login
-          </Button>
-        </form>
-
-        <div className="demo-credentials">
-          <p><strong>Demo Credentials:</strong></p>
-          <p>Admin: admin@thyrocare.com / admin123</p>
-          <p>Staff: staff@thyrocare.com / staff123</p>
         </div>
       </div>
     </div>
