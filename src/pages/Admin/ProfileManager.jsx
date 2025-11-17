@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, AlertCircle, Save, X, Package } from 'lucide-react';
 import { useAuthStore } from '../../store';
-import { getProfiles, getTestsMaster, addProfile } from '../../features/shared/dataService';
+import { getProfiles, addProfile } from '../../features/shared/dataService';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import toast from 'react-hot-toast';
@@ -12,7 +12,6 @@ const ProfileManager = () => {
   const { role } = useAuthStore();
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState([]);
-  const [allTests, setAllTests] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState(null);
@@ -21,10 +20,21 @@ const ProfileManager = () => {
     name: '',
     description: '',
     packagePrice: '',
-    testIds: []
+    tests: [] // Array of test objects with full data
   });
 
-  const [testSearch, setTestSearch] = useState('');
+  const [newTest, setNewTest] = useState({
+    name: '',
+    code: '',
+    category: 'General',
+    unit: '',
+    refLow: '',
+    refHigh: '',
+    refLowFemale: '',
+    refHighFemale: '',
+    price: '',
+    inputType: 'number'
+  });
 
   // Load data
   useEffect(() => {
@@ -33,7 +43,6 @@ const ProfileManager = () => {
 
   const loadData = () => {
     setProfiles(getProfiles());
-    setAllTests(getTestsMaster());
   };
 
   // Permission check
@@ -55,23 +64,58 @@ const ProfileManager = () => {
     p.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const availableTests = allTests.filter(test =>
-    !formData.testIds.includes(test.testId) &&
-    test.name.toLowerCase().includes(testSearch.toLowerCase())
-  );
+  // Add test to profile
+  const handleAddTest = () => {
+    if (!newTest.name || !newTest.price) {
+      toast.error('Test name and price are required');
+      return;
+    }
 
-  const selectedTests = allTests.filter(test => formData.testIds.includes(test.testId));
+    const test = {
+      ...newTest,
+      testId: `TEST_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      price: parseFloat(newTest.price) || 0,
+      refLow: newTest.refLow ? parseFloat(newTest.refLow) : null,
+      refHigh: newTest.refHigh ? parseFloat(newTest.refHigh) : null,
+      refLowFemale: newTest.refLowFemale ? parseFloat(newTest.refLowFemale) : null,
+      refHighFemale: newTest.refHighFemale ? parseFloat(newTest.refHighFemale) : null,
+    };
+
+    setFormData({
+      ...formData,
+      tests: [...formData.tests, test]
+    });
+
+    // Reset test form
+    setNewTest({
+      name: '',
+      code: '',
+      category: 'General',
+      unit: '',
+      refLow: '',
+      refHigh: '',
+      refLowFemale: '',
+      refHighFemale: '',
+      price: '',
+      inputType: 'number'
+    });
+
+    toast.success('Test added to profile');
+  };
 
   const handleAddProfile = () => {
-    if (!formData.name || formData.testIds.length === 0) {
+    if (!formData.name || formData.tests.length === 0) {
       toast.error('Profile name and at least one test are required');
       return;
     }
 
     try {
       const profileData = {
-        ...formData,
-        packagePrice: parseFloat(formData.packagePrice) || 0
+        name: formData.name,
+        description: formData.description,
+        packagePrice: parseFloat(formData.packagePrice) || 0,
+        testIds: formData.tests.map(t => t.testId), // Store test IDs
+        tests: formData.tests // Store full test objects
       };
 
       if (editingProfile) {
@@ -104,7 +148,7 @@ const ProfileManager = () => {
       name: profile.name,
       description: profile.description || '',
       packagePrice: profile.packagePrice || '',
-      testIds: [...profile.testIds]
+      tests: profile.tests || [] // Load existing tests
     });
     setShowAddModal(true);
   };
@@ -126,18 +170,10 @@ const ProfileManager = () => {
     }
   };
 
-  const addTestToProfile = (testId) => {
-    setFormData({
-      ...formData,
-      testIds: [...formData.testIds, testId]
-    });
-    setTestSearch('');
-  };
-
   const removeTestFromProfile = (testId) => {
     setFormData({
       ...formData,
-      testIds: formData.testIds.filter(id => id !== testId)
+      tests: formData.tests.filter(t => t.testId !== testId)
     });
   };
 
@@ -146,14 +182,25 @@ const ProfileManager = () => {
       name: '',
       description: '',
       packagePrice: '',
-      testIds: []
+      tests: []
+    });
+    setNewTest({
+      name: '',
+      code: '',
+      category: 'General',
+      unit: '',
+      refLow: '',
+      refHigh: '',
+      refLowFemale: '',
+      refHighFemale: '',
+      price: '',
+      inputType: 'number'
     });
     setEditingProfile(null);
-    setTestSearch('');
   };
 
   const calculateTotalPrice = () => {
-    return selectedTests.reduce((sum, test) => sum + (test.price || 0), 0);
+    return formData.tests.reduce((sum, test) => sum + (test.price || 0), 0);
   };
 
   return (
@@ -287,15 +334,16 @@ const ProfileManager = () => {
               </div>
 
               <div className="form-section">
-                <h3>Tests in Profile ({selectedTests.length})</h3>
+                <h3>Tests in Profile ({formData.tests.length})</h3>
                 
-                {selectedTests.length > 0 ? (
+                {formData.tests.length > 0 ? (
                   <div className="selected-tests-list">
-                    {selectedTests.map(test => (
+                    {formData.tests.map(test => (
                       <div key={test.testId} className="selected-test-item">
                         <div className="test-details">
                           <strong>{test.name}</strong>
-                          <span className="test-code">{test.code}</span>
+                          <span className="test-code">{test.code || '-'}</span>
+                          <span className="test-category">{test.category}</span>
                           <span className="test-price">₹{test.price || 0}</span>
                         </div>
                         <button
@@ -308,43 +356,132 @@ const ProfileManager = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="empty-state">No tests added yet. Search and add tests below.</p>
+                  <p className="empty-state">No tests added yet. Create tests using the form below.</p>
                 )}
               </div>
 
-              <div className="form-section">
-                <h3>Add Tests</h3>
-                <div className="search-box">
-                  <Search size={20} />
-                  <input
-                    type="text"
-                    placeholder="Search tests to add..."
-                    value={testSearch}
-                    onChange={(e) => setTestSearch(e.target.value)}
-                  />
+              <div className="form-section add-test-section">
+                <h3>Create New Test</h3>
+                <div className="test-form-grid">
+                  <div className="form-group">
+                    <label>Test Name *</label>
+                    <input
+                      type="text"
+                      value={newTest.name}
+                      onChange={(e) => setNewTest({ ...newTest, name: e.target.value })}
+                      placeholder="e.g., Hemoglobin"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Test Code</label>
+                    <input
+                      type="text"
+                      value={newTest.code}
+                      onChange={(e) => setNewTest({ ...newTest, code: e.target.value })}
+                      placeholder="e.g., HB"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Category</label>
+                    <select
+                      value={newTest.category}
+                      onChange={(e) => setNewTest({ ...newTest, category: e.target.value })}
+                    >
+                      <option value="General">General</option>
+                      <option value="Hematology">Hematology</option>
+                      <option value="Biochemistry">Biochemistry</option>
+                      <option value="Serology">Serology</option>
+                      <option value="Urine">Urine</option>
+                      <option value="Stool">Stool</option>
+                      <option value="Microbiology">Microbiology</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Unit</label>
+                    <input
+                      type="text"
+                      value={newTest.unit}
+                      onChange={(e) => setNewTest({ ...newTest, unit: e.target.value })}
+                      placeholder="e.g., g/dL"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Ref Low (Male)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newTest.refLow}
+                      onChange={(e) => setNewTest({ ...newTest, refLow: e.target.value })}
+                      placeholder="Min value"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Ref High (Male)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newTest.refHigh}
+                      onChange={(e) => setNewTest({ ...newTest, refHigh: e.target.value })}
+                      placeholder="Max value"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Ref Low (Female)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newTest.refLowFemale}
+                      onChange={(e) => setNewTest({ ...newTest, refLowFemale: e.target.value })}
+                      placeholder="Min value"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Ref High (Female)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newTest.refHighFemale}
+                      onChange={(e) => setNewTest({ ...newTest, refHighFemale: e.target.value })}
+                      placeholder="Max value"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Price (₹) *</label>
+                    <input
+                      type="number"
+                      value={newTest.price}
+                      onChange={(e) => setNewTest({ ...newTest, price: e.target.value })}
+                      placeholder="Test price"
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Input Type</label>
+                    <select
+                      value={newTest.inputType}
+                      onChange={(e) => setNewTest({ ...newTest, inputType: e.target.value })}
+                    >
+                      <option value="number">Number</option>
+                      <option value="text">Text</option>
+                      <option value="dropdown">Dropdown</option>
+                    </select>
+                  </div>
                 </div>
 
-                {testSearch && (
-                  <div className="available-tests-list">
-                    {availableTests.length > 0 ? (
-                      availableTests.slice(0, 10).map(test => (
-                        <div
-                          key={test.testId}
-                          className="available-test-item"
-                          onClick={() => addTestToProfile(test.testId)}
-                        >
-                          <div>
-                            <strong>{test.name}</strong>
-                            <span className="test-category">{test.category}</span>
-                          </div>
-                          <span className="test-price">₹{test.price || 0}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="no-results">No tests found</p>
-                    )}
-                  </div>
-                )}
+                <div className="add-test-btn-container">
+                  <Button icon={Plus} onClick={handleAddTest}>
+                    Add Test to Profile
+                  </Button>
+                </div>
               </div>
             </div>
 

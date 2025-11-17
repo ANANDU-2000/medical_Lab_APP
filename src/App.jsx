@@ -20,7 +20,6 @@ import ResultEntryPage from './features/results/ResultEntryPage';
 import FinancialManagement from './features/admin/financial-management/FinancialManagement';
 import AdminSettings from './features/admin/settings/AdminSettings';
 import TechniciansPage from './pages/Settings/TechniciansPage';
-import TestMaster from './pages/Admin/TestMaster';
 import ProfileManager from './pages/Admin/ProfileManager';
 
 import Layout from './components/Layout/Layout';
@@ -128,16 +127,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* NEW Test Master Page */}
-          <Route
-            path="admin/test-master"
-            element={
-              <ProtectedRoute adminOnly>
-                <TestMaster />
-              </ProtectedRoute>
-            }
-          />
-          {/* NEW Profile Manager Page */}
+          {/* Profile Manager Page */}
           <Route
             path="admin/profile-manager"
             element={

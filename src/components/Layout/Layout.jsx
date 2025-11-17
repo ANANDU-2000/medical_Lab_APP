@@ -8,7 +8,6 @@ import {
   LogOut,
   Menu,
   X,
-  TestTube,
   Package
 } from 'lucide-react';
 import { useAuthStore } from '../../store';
@@ -24,7 +23,6 @@ const Layout = () => {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'staff'] },
     { icon: Users, label: 'Patients', path: '/patients', roles: ['admin', 'staff'] },
-    { icon: TestTube, label: 'Test Master', path: '/admin/test-master', roles: ['admin'] },
     { icon: Package, label: 'Profiles', path: '/admin/profile-manager', roles: ['admin'] },
     { icon: DollarSign, label: 'Financial', path: '/financial', roles: ['admin'] },
     { icon: SettingsIcon, label: 'Settings', path: '/settings', roles: ['admin'] },
