@@ -615,172 +615,76 @@ const ResultEntryPage = () => {
           </div>
         </div>
 
-        {/* RIGHT COLUMN - Signing & Summary */}
+        {/* RIGHT COLUMN - Auto-Save Status & Action */}
         <div className="right-column-signing">
-          {/* Signing Technician Selector */}
-          <div className="card-modern signing-card">
+          {/* Auto-Save Status */}
+          <div className="card-modern status-card">
             <div className="card-header-blue">
-              <h3>Signing Technician</h3>
+              <h3>Status</h3>
             </div>
             <div className="card-body">
-              <div className="form-group-modern">
-                <label className="label-blue">Signing Technician *</label>
-                <select
-                  value={selectedTechnicianId}
-                  onChange={(e) => setSelectedTechnicianId(e.target.value)}
-                  className="input-modern"
-                  disabled={!canEditResults}
-                >
-                  <option value="">Select technician...</option>
-                  {technicians.map(tech => (
-                    <option key={tech.userId} value={tech.userId}>
-                      {tech.fullName} \u2014 {tech.qualification || 'Lab Technician'}
-                    </option>
-                  ))}
-                  <option value="authorized">Authorized Technician (Fallback)</option>
-                </select>
-                <span className="helper-text">
-                  Choose technician who will sign this report. Default: your linked signature.
-                </span>
-              </div>
-
-              {/* Signature Preview */}
-              {selectedTechnician && (
-                <div className="signature-preview-box">
-                  <label className="label-blue">Signature Preview</label>
-                  {selectedTechnician.signatureUrl ? (
-                    <div className="signature-image-container">
-                      <img 
-                        src={selectedTechnician.signatureUrl} 
-                        alt="Technician Signature" 
-                        className="signature-image"
-                      />
-                      <div className="signature-details">
-                        <strong>{selectedTechnician.fullName}</strong>
-                        <span>{selectedTechnician.qualification}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="signature-placeholder">
-                      <p>(Signature not available)</p>
-                      <span className="placeholder-text">
-                        {selectedTechnician.fullName}<br/>
-                        {selectedTechnician.qualification}
-                      </span>
-                    </div>
-                  )}
+              <div className="status-info">
+                <div className="status-item">
+                  <span className="status-label">Signed By:</span>
+                  <span className="status-value">{currentUser?.fullName || 'Unknown'}</span>
                 </div>
-              )}
-
-              {/* Use My Signature Default Checkbox */}
-              {currentUser && selectedTechnician && currentUser.userId === selectedTechnicianId && (
-                <div className="checkbox-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={useMySignatureDefault}
-                      onChange={(e) => setUseMySignatureDefault(e.target.checked)}
-                    />
-                    <span>Use my signature by default for future reports</span>
-                  </label>
+                <div className="status-item">
+                  <span className="status-label">Qualification:</span>
+                  <span className="status-value">{currentUser?.qualification || 'Lab Technician'}</span>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Billing Summary */}
-          <div className="card-modern billing-summary-card">
-            <div className="card-header-blue">
-              <h3>Billing Summary</h3>
-            </div>
-            <div className="card-body">
-              <div className="billing-row">
-                <span className="label">Selected Tests:</span>
-                <span className="value">{billing.testCount} tests</span>
+                <div className="status-item">
+                  <span className="status-label">Auto-Save:</span>
+                  <span className={`status-badge ${saveStatus}`}>
+                    {saveStatus === 'saving' && 'Saving...'}
+                    {saveStatus === 'saved' && '✓ Saved'}
+                    {saveStatus === 'error' && '⚠ Error'}
+                    {!saveStatus && 'Ready'}
+                  </span>
+                </div>
               </div>
-              <div className="billing-row">
-                <span className="label">Subtotal:</span>
-                <span className="value">\u20b9{billing.subtotal.toLocaleString()}</span>
-              </div>
-              <div className="billing-row">
-                <span className="label">Discount:</span>
-                {canEditDiscount ? (
-                  <div className="discount-input-group">
-                    <input
-                      type="number"
-                      value={discount}
-                      onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                      className="discount-input"
-                      min="0"
-                      max="100"
-                      step="0.1"
-                    />
-                    <span className="discount-percent">%</span>
-                    <span className="discount-amount">(\u20b9{billing.discountAmount.toFixed(2)})</span>
-                  </div>
-                ) : (
-                  <span className="value">{discount}% (\u20b9{billing.discountAmount.toFixed(2)})</span>
-                )}
-              </div>
-              <div className="billing-row total-row">
-                <span className="label">Final Amount:</span>
-                <span className="value final-amount">\u20b9{billing.finalAmount.toLocaleString()}</span>
+              <div className="helper-text-box">
+                <AlertCircle size={14} />
+                <span>Results are auto-saved as you type. Your signature will be used on PDF.</span>
               </div>
             </div>
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Action */}
           <div className="card-modern actions-card">
             <div className="card-body">
-              <Button 
-                variant="outline" 
-                onClick={handleSave} 
-                fullWidth
-                disabled={!canEditResults}
-              >
-                <Save size={18} />
-                Save Results
-              </Button>
-              
               <Button 
                 variant="primary" 
                 onClick={handleGenerateReport} 
                 fullWidth
                 disabled={isGeneratingPDF}
+                size="large"
               >
-                <FileText size={18} />
-                {isGeneratingPDF ? 'Generating...' : 'Generate Result PDF'}
-              </Button>
-              
-              <Button 
-                variant="secondary" 
-                onClick={handleGenerateInvoice} 
-                fullWidth
-              >
-                <Receipt size={18} />
-                Generate Invoice PDF
+                <FileText size={20} />
+                {isGeneratingPDF ? 'Generating Report...' : 'Complete & Generate Report'}
               </Button>
               
               {visit.reportedAt && (
                 <>
                   <div className="divider-modern"></div>
-                  <Button 
-                    variant="outline" 
-                    onClick={handlePrintReport} 
-                    fullWidth
-                  >
-                    <Printer size={18} />
-                    Print Report
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setShowShareOptions(true)} 
-                    fullWidth
-                  >
-                    <Share2 size={18} />
-                    Share Report
-                  </Button>
+                  <div className="share-actions">
+                    <Button 
+                      variant="outline" 
+                      onClick={handlePrintReport} 
+                      fullWidth
+                    >
+                      <Printer size={18} />
+                      Print Report
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowShareOptions(true)} 
+                      fullWidth
+                    >
+                      <Share2 size={18} />
+                      Share Report
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
