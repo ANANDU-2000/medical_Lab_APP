@@ -1,10 +1,15 @@
-import React, { useMemo } from 'react';
-import { useFinancialStore } from '../../../store';
+import React, { useMemo, useState, useEffect } from 'react';
 import Card from '../../../components/ui/Card';
 import './ExpenseSummary.css';
 
 const ExpenseSummary = () => {
-  const { expenses } = useFinancialStore();
+  const [expenses, setExpenses] = useState([]);
+
+  // Load expenses from localStorage
+  useEffect(() => {
+    const storedExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+    setExpenses(storedExpenses);
+  }, []);
 
   const today = new Date();
   const startOfToday = new Date(today.setHours(0, 0, 0, 0));

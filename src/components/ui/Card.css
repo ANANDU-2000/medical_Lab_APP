@@ -1,53 +1,51 @@
 .card {
-  background: var(--bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 6px 20px rgba(0, 137, 123, 0.08);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid var(--border-accent);
+  transition: var(--transition);
 }
 
 .card:hover {
-  box-shadow: 0 12px 32px rgba(0, 137, 123, 0.12);
-  transform: translateY(-3px);
-  border-color: var(--primary-light);
+  box-shadow: var(--shadow-md);
 }
 
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 22px 26px;
-  border-bottom: 2px solid var(--border-accent);
-  background: linear-gradient(135deg, #e0f2f1 0%, #ffffff 100%);
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
 }
 
 .card-title {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--primary-dark);
-  letter-spacing: -0.3px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .card-title::before {
   content: '';
   width: 4px;
-  height: 24px;
-  background: linear-gradient(180deg, var(--primary-medical) 0%, var(--primary-dark) 100%);
-  border-radius: 2px;
+  height: 20px;
+  background: var(--primary);
+  border-radius: var(--radius-sm);
 }
 
 .card-actions {
   display: flex;
-  gap: var(--spacing-sm);
+  gap: var(--space-3);
 }
 
 .card-body {
-  padding: 24px;
+  padding: var(--space-6);
 }
 
 .card-body.no-padding {
@@ -56,14 +54,14 @@
 
 @media (max-width: 768px) {
   .card-header {
-    padding: var(--spacing-md);
+    padding: var(--space-4) var(--space-5);
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--spacing-sm);
+    gap: var(--space-3);
   }
   
   .card-body {
-    padding: var(--spacing-md);
+    padding: var(--space-5);
   }
   
   .card-actions {

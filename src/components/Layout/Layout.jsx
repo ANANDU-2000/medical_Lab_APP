@@ -3,14 +3,13 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
-  FileText, 
   DollarSign, 
   Settings as SettingsIcon,
-  FlaskConical,
-  Layers,
   LogOut,
   Menu,
-  X
+  X,
+  TestTube,
+  Package
 } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import './Layout.css';
@@ -25,11 +24,10 @@ const Layout = () => {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'staff'] },
     { icon: Users, label: 'Patients', path: '/patients', roles: ['admin', 'staff'] },
-    { icon: FileText, label: 'Results', path: '/results', roles: ['admin', 'staff'] },
-    { icon: FlaskConical, label: 'Test Master', path: '/admin/test-master', roles: ['admin'] },
-    { icon: Layers, label: 'Profile Manager', path: '/admin/profile-manager', roles: ['admin'] },
-    { icon: DollarSign, label: 'Financial', path: '/financial', roles: ['admin'] },
-    { icon: SettingsIcon, label: 'Settings', path: '/settings', roles: ['admin'] },
+    { icon: TestTube, label: 'Test Master', path: '/admin/test-master', roles: ['admin'] },
+    { icon: Package, label: 'Profiles', path: '/admin/profile-manager', roles: ['admin'] },
+    { icon: DollarSign, label: 'Financial', path: '/admin/financial', roles: ['admin'] },
+    { icon: SettingsIcon, label: 'Settings', path: '/admin/settings', roles: ['admin'] },
   ];
 
   const filteredMenu = menuItems.filter(item => item.roles.includes(role));

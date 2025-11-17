@@ -1,27 +1,48 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { login as authLogin, logout as authLogout, getCurrentUser } from '../services/authService';
 
-// Auth Store
+// Auth Store - Integrated with authService
 export const useAuthStore = create(
   persist(
-    (set) => ({
-      user: null,
-      role: null, // 'admin' or 'staff'
-      isAuthenticated: false,
+    (set, get) => ({
+      user: getCurrentUser(),
+      role: getCurrentUser()?.role || null,
+      isAuthenticated: !!getCurrentUser(),
       
-      login: (userData) => set({ 
-        user: userData, 
-        role: userData.role,
-        isAuthenticated: true 
-      }),
+      login: async (email, password) => {
+        try {
+          const { user } = authLogin(email, password);
+          set({ 
+            user, 
+            role: user.role,
+            isAuthenticated: true 
+          });
+          return { success: true, user };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      },
       
-      logout: () => set({ 
-        user: null, 
-        role: null,
-        isAuthenticated: false 
-      }),
+      logout: () => {
+        authLogout();
+        set({ 
+          user: null, 
+          role: null,
+          isAuthenticated: false 
+        });
+      },
       
-      updateUser: (userData) => set({ user: userData })
+      updateUser: (userData) => set({ user: userData }),
+      
+      refreshUser: () => {
+        const user = getCurrentUser();
+        set({ 
+          user,
+          role: user?.role || null,
+          isAuthenticated: !!user
+        });
+      }
     }),
     {
       name: 'auth-storage'

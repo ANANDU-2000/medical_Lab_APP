@@ -1,12 +1,31 @@
-import React, { useState, useMemo } from 'react';
-import { useFinancialStore } from '../../../store';
+import React, { useState, useMemo, useEffect } from 'react';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import toast from 'react-hot-toast';
 import './ExpenseList.css';
 
 const ExpenseList = () => {
-  const { expenses, deleteExpense, updateExpense } = useFinancialStore();
+  const [expenses, setExpenses] = useState([]);
+
+  // Load expenses from localStorage
+  useEffect(() => {
+    const storedExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+    setExpenses(storedExpenses);
+  }, []);
+
+  const deleteExpense = (id) => {
+    const updatedExpenses = expenses.filter(e => e.id !== id);
+    localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+    setExpenses(updatedExpenses);
+  };
+
+  const updateExpense = (id, updatedData) => {
+    const updatedExpenses = expenses.map(e => 
+      e.id === id ? { ...e, ...updatedData } : e
+    );
+    localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+    setExpenses(updatedExpenses);
+  };
   
   const [filters, setFilters] = useState({
     category: '',

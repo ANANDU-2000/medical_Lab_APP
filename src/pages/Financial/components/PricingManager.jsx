@@ -1,13 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { useSettingsStore } from '../../../store';
+import React, { useState, useMemo, useEffect } from 'react';
+import { getProfiles } from '../../../features/shared/dataService';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import toast from 'react-hot-toast';
 import './PricingManager.css';
 
 const PricingManager = () => {
-  const { testMaster, updateTest } = useSettingsStore();
-  
+  const [profiles, setProfiles] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,15 +16,29 @@ const PricingManager = () => {
     discount: 0,
   });
 
+  // Load profiles from templates
+  useEffect(() => {
+    const profiles = getProfiles();
+    const profileList = profiles.map(profile => ({
+      id: profile.profileId,
+      name: profile.name,
+      price: profile.packagePrice || 0,
+      discount: 0,
+      finalPrice: profile.packagePrice || 0,
+      code: profile.profileId,
+    }));
+    setProfiles(profileList);
+  }, []);
+
   const filteredTests = useMemo(() => {
-    if (!searchTerm) return testMaster;
+    if (!searchTerm) return profiles;
     
     const term = searchTerm.toLowerCase();
-    return testMaster.filter(test => 
-      test.name?.toLowerCase().includes(term) ||
-      test.code?.toLowerCase().includes(term)
+    return profiles.filter(profile => 
+      profile.name?.toLowerCase().includes(term) ||
+      profile.code?.toLowerCase().includes(term)
     );
-  }, [testMaster, searchTerm]);
+  }, [profiles, searchTerm]);
 
   const handleEdit = (test) => {
     setEditingId(test.id);
@@ -41,10 +54,11 @@ const PricingManager = () => {
       ? editForm.price - (editForm.price * editForm.discount / 100)
       : editForm.price;
 
-    updateTest(editingId, {
-      ...editForm,
-      finalPrice,
-    });
+    // Update profile in state (in a real app, you might save to localStorage or backend)
+    const updatedProfiles = profiles.map(p => 
+      p.id === editingId ? { ...p, ...editForm, finalPrice } : p
+    );
+    setProfiles(updatedProfiles);
 
     setEditingId(null);
     setEditForm({});
@@ -69,16 +83,16 @@ const PricingManager = () => {
       : newProfile.price;
 
     const profile = {
-      id: Date.now().toString(),
+      id: `custom_${Date.now()}`,
       name: newProfile.name,
       price: parseFloat(newProfile.price),
       discount: parseFloat(newProfile.discount),
       finalPrice,
-      type: 'profile',
+      code: newProfile.name.substring(0, 3).toUpperCase(),
     };
 
-    // In a real app, you would add this to the testMaster
-    // For now, we'll update an existing one or show a message
+    // Add to profiles list
+    setProfiles(prev => [...prev, profile]);
     toast.success('New profile pricing added! 💵');
     
     setNewProfile({
