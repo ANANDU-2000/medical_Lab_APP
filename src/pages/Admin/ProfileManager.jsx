@@ -245,7 +245,7 @@ const ProfileManager = () => {
             <div className="profile-stats">
               <div className="stat-item">
                 <span className="stat-label">Tests</span>
-                <span className="stat-value">{profile.testIds.length}</span>
+                <span className="stat-value">{profile.tests?.length || profile.testIds?.length || 0}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Package Price</span>

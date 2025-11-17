@@ -24,6 +24,17 @@ import ProfileManager from './pages/Admin/ProfileManager';
 
 import Layout from './components/Layout/Layout';
 
+// Public Route Component (redirect to dashboard if already logged in)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated } = useAuthStore();
+  
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return children;
+};
+
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { isAuthenticated, role } = useAuthStore();
@@ -79,7 +90,11 @@ function App() {
       
       <Routes>
         {/* Public Route - Login */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        } />
         
         {/* Protected Routes */}
         <Route
