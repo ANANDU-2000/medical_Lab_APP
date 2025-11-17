@@ -28,14 +28,36 @@ export const generateReportPDF = (visitData) => {
   let yPos = margin;
 
   // ========================================
-  // HEADER SECTION
+  // HEADER SECTION WITH LOGOS
   // ========================================
   
   // Header border top
   doc.setDrawColor(COLORS.border);
   doc.setLineWidth(0.5);
   doc.line(margin, yPos, pageWidth - margin, yPos);
-  yPos += 8;
+  yPos += 4;
+
+  // Add logos
+  const logoHeight = 18;
+  const logoY = yPos;
+  
+  // Left Logo - HEALit
+  try {
+    const healitLogo = '/images/@heal original editable file (png).png';
+    doc.addImage(healitLogo, 'PNG', margin, logoY, logoHeight * 1.2, logoHeight);
+  } catch (error) {
+    console.log('HEALit logo not loaded');
+  }
+  
+  // Right Logo - Partner
+  try {
+    const partnerLogo = '/images/download.jpeg.jpg';
+    doc.addImage(partnerLogo, 'JPEG', pageWidth - margin - logoHeight * 1.2, logoY, logoHeight * 1.2, logoHeight);
+  } catch (error) {
+    console.log('Partner logo not loaded');
+  }
+
+  yPos += logoHeight + 4;
 
   // Main Title - HEALit Med Laboratories
   doc.setFont('helvetica', 'bold');
