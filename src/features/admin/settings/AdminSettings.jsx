@@ -176,24 +176,10 @@ const AdminSettings = () => {
     const doubleConfirmed = window.confirm(
       '⚠️ FINAL CONFIRMATION\n\n' +
       'This action CANNOT be undone!\n\n' +
-      'Type your admin password in the next prompt to confirm.'
+      'Click OK to confirm and clear all data.'
     );
     
     if (!doubleConfirmed) return;
-    
-    // Ask for password
-    const password = window.prompt('Enter your admin password to confirm:');
-    
-    if (!password) {
-      toast.error('Data clear cancelled');
-      return;
-    }
-    
-    // Verify password (simple check)
-    if (currentUser && currentUser.password !== password) {
-      toast.error('Incorrect password. Operation cancelled.');
-      return;
-    }
     
     try {
       clearAllData();
