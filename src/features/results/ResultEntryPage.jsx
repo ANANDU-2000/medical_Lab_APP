@@ -108,14 +108,18 @@ const ResultEntryPage = () => {
     setSaveStatus('saving');
     
     try {
-      // Update visit with results  
+      // Update visit with results - including ALL test data (prices, removed tests, etc.)
       const updatedTests = visit.tests.map(test => ({
         ...test,
         value: results[test.testId]?.value || '',
         status: results[test.testId]?.status || 'NORMAL'
       }));
       
-      updateVisitResults(visitId, updatedTests);
+      // Use updateVisit to save ALL changes (tests array, discount, etc.)
+      updateVisit(visitId, {
+        tests: updatedTests,
+        discount: discount
+      });
       
       // Audit log
       console.log('AUDIT: SAVE_RESULTS', {
@@ -136,7 +140,7 @@ const ResultEntryPage = () => {
       toast.error('Failed to save results');
       console.error('Save error:', error);
     }
-  }, [visit, visitId, currentUser, results]);
+  }, [visit, visitId, currentUser, results, discount]);
 
   // Auto-save functionality (only for result changes)
   useEffect(() => {
@@ -225,7 +229,8 @@ const ResultEntryPage = () => {
       const updatedTests = [...prev.tests];
       updatedTests[testIndex] = {
         ...updatedTests[testIndex],
-        price_snapshot: priceValue
+        price_snapshot: priceValue,
+        price: priceValue // Update both for consistency
       };
       return { ...prev, tests: updatedTests };
     });
@@ -256,7 +261,22 @@ const ResultEntryPage = () => {
       return { ...prev, tests: updatedTests };
     });
     
+    // Remove from results state as well
+    setResults(prev => {
+      const updated = { ...prev };
+      delete updated[test.testId];
+      return updated;
+    });
+    
     toast.success('Test removed successfully');
+    
+    // Trigger auto-save immediately
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      handleSave();
+    }, 500);
   };
 
   // Handle add test
