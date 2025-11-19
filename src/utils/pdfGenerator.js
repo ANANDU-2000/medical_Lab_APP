@@ -224,9 +224,109 @@ export const generateReportPDF = (visitData) => {
     yPos = doc.lastAutoTable.finalY + 10;
   });
 
+  // Add some spacing before billing section
+  yPos += 5;
+
+  // ========================================
+  // BILLING SUMMARY SECTION
+  // ========================================
+  
+  // Calculate billing totals
+  const subtotal = visitData.tests.reduce((sum, test) => {
+    return sum + (test.price_snapshot || test.price || 0);
+  }, 0);
+  
+  const discount = visitData.discount || 0;
+  const discountAmount = (subtotal * discount) / 100;
+  const totalAmount = subtotal - discountAmount;
+  
+  // Check if there's enough space, otherwise add new page
+  if (yPos > pageHeight - 80) {
+    doc.addPage();
+    yPos = margin;
+  }
+  
+  // Billing Summary Box
+  const billingSectionY = yPos;
+  const billingBoxWidth = 80;
+  const billingBoxX = pageWidth - margin - billingBoxWidth;
+  const billingBoxHeight = discount > 0 ? 32 : 24;
+  
+  // Draw billing box with border
+  doc.setDrawColor(COLORS.primary);
+  doc.setLineWidth(0.5);
+  doc.setFillColor('#F9FAFB');
+  doc.roundedRect(billingBoxX, billingSectionY, billingBoxWidth, billingBoxHeight, 2, 2, 'FD');
+  
+  let billingY = billingSectionY + 7;
+  const labelX = billingBoxX + 5;
+  const valueX = billingBoxX + billingBoxWidth - 5;
+  
+  // Subtotal
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor('#6B7280');
+  doc.text('Subtotal:', labelX, billingY);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(COLORS.text);
+  doc.text(`₹${subtotal.toFixed(2)}`, valueX, billingY, { align: 'right' });
+  billingY += 6;
+  
+  // Discount (only if > 0)
+  if (discount > 0) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor('#6B7280');
+    doc.text(`Discount (${discount}%):`, labelX, billingY);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor('#EF4444'); // Red for discount
+    doc.text(`-₹${discountAmount.toFixed(2)}`, valueX, billingY, { align: 'right' });
+    billingY += 6;
+  }
+  
+  // Divider line
+  doc.setDrawColor('#D1D5DB');
+  doc.setLineWidth(0.3);
+  doc.line(labelX, billingY, valueX, billingY);
+  billingY += 5;
+  
+  // Total Amount
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(COLORS.primary);
+  doc.text('Total Amount:', labelX, billingY);
+  doc.setFontSize(13);
+  doc.text(`₹${totalAmount.toFixed(2)}`, valueX, billingY, { align: 'right' });
+  billingY += 7;
+  
+  // Payment Status Badge
+  if (visitData.paymentStatus === 'paid') {
+    doc.setFillColor('#D1FAE5'); // Light green
+    doc.setDrawColor('#059669');
+    doc.setLineWidth(0.5);
+    const badgeWidth = 30;
+    const badgeHeight = 6;
+    const badgeX = billingBoxX + (billingBoxWidth - badgeWidth) / 2;
+    doc.roundedRect(badgeX, billingY - 4, badgeWidth, badgeHeight, 1, 1, 'FD');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor('#065F46');
+    doc.text('✓ PAID', billingBoxX + billingBoxWidth / 2, billingY, { align: 'center' });
+  }
+  
+  // Update yPos to position after billing box
+  yPos = billingSectionY + billingBoxHeight + 15;
+
   // ========================================
   // FOOTER - SIGNATURE SECTION (NO NAMES/QUALIFICATIONS)
   // ========================================
+  
+  // Ensure signatures are on the same page as billing
+  if (yPos > pageHeight - 50) {
+    doc.addPage();
+    yPos = margin + 10;
+  }
   
   yPos = pageHeight - 40;
   
