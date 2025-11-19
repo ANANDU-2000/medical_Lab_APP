@@ -21,7 +21,7 @@
   width: 50px;
   height: 50px;
   border: 4px solid #E2E8F0;
-  border-top-color: #2563EB;
+  border-top-color: #000000;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -95,14 +95,14 @@
 }
 
 .sidebar-tab:hover {
-  background: #F8FAFC;
-  color: #2563EB;
+  background: #F5F5F5;
+  color: #000000;
 }
 
 .sidebar-tab.active {
-  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-  color: #2563EB;
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);
+  background: #F5F5F5;
+  color: #000000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .sidebar-tab svg {
@@ -186,7 +186,7 @@
 .form-group label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #2563EB;
+  color: #000000;
 }
 
 .form-group input,
@@ -205,8 +205,8 @@
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #2563EB;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #000000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
 .checkbox-label {
@@ -220,7 +220,7 @@
 .checkbox-label input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: #2563EB;
+  accent-color: #000000;
   cursor: pointer;
 }
 
@@ -251,7 +251,7 @@
   text-align: left;
   font-size: 0.8125rem;
   font-weight: 700;
-  color: #2563EB;
+  color: #000000;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 2px solid #E2E8F0;
@@ -282,8 +282,8 @@
 }
 
 .role-badge.admin {
-  background: #DBEAFE;
-  color: #1E40AF;
+  background: #F5F5F5;
+  color: #000000;
 }
 
 .role-badge.staff {
@@ -325,9 +325,9 @@
 }
 
 .btn-icon:hover {
-  background: #EFF6FF;
-  color: #2563EB;
-  border-color: #2563EB;
+  background: #F5F5F5;
+  color: #000000;
+  border-color: #000000;
 }
 
 .btn-icon.btn-delete:hover {
@@ -355,8 +355,8 @@
 }
 
 .permission-item:hover {
-  border-color: #2563EB;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+  border-color: #000000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .permission-info {
@@ -416,7 +416,7 @@
 }
 
 input:checked + .toggle-slider {
-  background-color: #2563EB;
+  background-color: #000000;
 }
 
 input:checked + .toggle-slider:before {
@@ -434,10 +434,10 @@ input:disabled + .toggle-slider {
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-4);
-  background: #EFF6FF;
-  border: 2px solid #BFDBFE;
+  background: #F5F5F5;
+  border: 2px solid #E5E5E5;
   border-radius: 8px;
-  color: #1E40AF;
+  color: #000000;
   font-size: 0.875rem;
   font-weight: 600;
   margin-bottom: var(--space-4);
@@ -630,4 +630,36 @@ input:disabled + .toggle-slider {
   .card-settings {
     padding: var(--space-4);
   }
+}
+
+/* Danger Zone Alert */
+.alert-box-danger {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: #FEE2E2;
+  border: 2px solid #DC2626;
+  border-radius: 8px;
+  margin-bottom: var(--space-4);
+}
+
+.alert-box-danger svg {
+  color: #DC2626;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.alert-box-danger strong {
+  display: block;
+  color: #DC2626;
+  font-size: 1rem;
+  margin-bottom: var(--space-2);
+}
+
+.alert-box-danger p {
+  color: #991B1B;
+  font-size: 0.875rem;
+  margin: 0;
+  line-height: 1.5;
 }

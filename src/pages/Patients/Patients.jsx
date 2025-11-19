@@ -9,9 +9,19 @@ import {
   Users,
   Activity,
   ShieldCheck,
-  Layers
+  Layers,
+  FileText,
+  DollarSign,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Edit2,
+  Trash2
 } from 'lucide-react';
-import { getVisits, getPatients, getProfileById } from '../../features/shared/dataService';
+import toast from 'react-hot-toast';
+import { getVisits, getPatients, getProfileById, markPDFGenerated, markInvoiceGenerated, getVisitById, deletePatient } from '../../features/shared/dataService';
+import { downloadReportPDF } from '../../utils/pdfGenerator';
+import { getTechnicians } from '../../services/authService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import './Patients.css';
@@ -21,15 +31,18 @@ const Patients = () => {
   const [visits, setVisits] = useState([]);
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const statusCounts = useMemo(() => {
     return visits.reduce(
       (acc, visit) => {
-        if (visit.status === 'report_generated') {
+        if (visit.status === 'report_generated' || visit.status === 'completed') {
           acc.completed += 1;
-        } else if (visit.status === 'results_entered') {
-          acc.results += 1;
         } else if (visit.status === 'sample_times_set') {
+          // Count as 'sample' (waiting for results/report)
           acc.sample += 1;
         } else {
           acc.registered += 1;
@@ -81,23 +94,291 @@ const Patients = () => {
 
   // Load visits and patients from localStorage
   useEffect(() => {
+    loadData();
+    
+    // Listen for real-time data updates
+    const handleDataUpdate = () => {
+      loadData();
+    };
+    
+    window.addEventListener('healit-data-update', handleDataUpdate);
+    return () => window.removeEventListener('healit-data-update', handleDataUpdate);
+  }, []);
+
+  const loadData = () => {
     const allVisits = getVisits();
     const allPatients = getPatients();
     setVisits(allVisits);
     setPatients(allPatients);
-  }, []);
+  };
+
+  const handleGeneratePDF = async (visitId) => {
+    const visit = visits.find(v => v.visitId === visitId);
+    if (!visit) return;
+    
+    const patient = getPatientForVisit(visit);
+    const profile = getProfileById(visit.profileId);
+    
+    // CRITICAL: Check if results entered AND report generated (accepts both 'report_generated' and 'completed')
+    const hasResults = (
+      (visit.status === 'report_generated' || visit.status === 'completed') && 
+      visit.reportedAt && 
+      visit.tests && 
+      visit.tests.length > 0
+    );
+    
+    if (!hasResults) {
+      toast.error('❌ Cannot generate PDF: Test results must be entered and report generated first!');
+      return;
+    }
+    
+    // Check if tests have actual result values
+    const hasResultValues = visit.tests.some(t => t.result?.value);
+    if (!hasResultValues) {
+      toast.error('❌ Cannot generate PDF: No test result values found!');
+      return;
+    }
+    
+    // WARNING: If already generated, ask for confirmation to re-print
+    if (visit.pdfGenerated) {
+      const confirmReprint = window.confirm('ℹ️ PDF already generated!\n\nDo you want to RE-PRINT this report?');
+      if (!confirmReprint) return;
+    }
+    
+    try {
+      // Use ADVANCED PDF template
+      let signingTechnician = null;
+      if (visit.signing_technician_id) {
+        const technicians = getTechnicians();
+        signingTechnician = technicians.find(t => t.technicianId === visit.signing_technician_id);
+      }
+      
+      const visitData = {
+        ...visit,
+        patient,
+        profile,
+        signingTechnician
+      };
+      
+      // Use existing advanced template
+      downloadReportPDF(visitData);
+      
+      if (!visit.pdfGenerated) {
+        markPDFGenerated(visitId);
+        toast.success('✅ PDF generated successfully!');
+      } else {
+        toast.success('🖨️ PDF re-printed successfully!');
+      }
+      
+      loadData();
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast.error('Failed to generate PDF: ' + error.message);
+    }
+  };
+
+  const handleGenerateInvoice = async (visitId) => {
+    const visit = visits.find(v => v.visitId === visitId);
+    if (!visit) return;
+    
+    const patient = getPatientForVisit(visit);
+    const profile = getProfileById(visit.profileId);
+    
+    // CRITICAL: Check if results entered AND report generated (accepts both 'report_generated' and 'completed')
+    const hasResults = (
+      (visit.status === 'report_generated' || visit.status === 'completed') && 
+      visit.reportedAt && 
+      visit.tests && 
+      visit.tests.length > 0
+    );
+    
+    if (!hasResults) {
+      toast.error('❌ Cannot generate invoice: Test results must be entered and report generated first!');
+      return;
+    }
+    
+    // Check if tests have actual result values
+    const hasResultValues = visit.tests.some(t => t.result?.value);
+    if (!hasResultValues) {
+      toast.error('❌ Cannot generate invoice: No test result values found!');
+      return;
+    }
+    
+    // CRITICAL WARNING: If already generated and paid, strong confirmation
+    if (visit.invoiceGenerated && visit.paymentStatus === 'paid') {
+      const confirmReInvoice = window.confirm('⚠️ INVOICE ALREADY GENERATED & PAID!\n\nPatient: ' + patient.name + '\nPaid Amount: ₹' + (profile?.price || profile?.packagePrice || 0) + '\n\nAre you sure you want to RE-PRINT this invoice?\n\n(This will NOT change payment status)');
+      if (!confirmReInvoice) return;
+    }
+    
+    try {
+      // Use ADVANCED Invoice template (from utils if exists, or create proper one)
+      const printWindow = window.open('', '', 'width=800,height=600');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Invoice - ${visit.visitId}</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: 'Arial', sans-serif; padding: 40px; background: #fff; }
+              .invoice-container { max-width: 800px; margin: 0 auto; border: 2px solid #000; padding: 30px; }
+              .header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #000; padding-bottom: 20px; }
+              .header h1 { font-size: 28px; color: #000; margin-bottom: 5px; }
+              .header p { font-size: 16px; color: #666; }
+              .invoice-details { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+              .detail-section h3 { font-size: 14px; color: #000; margin-bottom: 10px; text-transform: uppercase; }
+              .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted #ddd; }
+              .detail-row strong { color: #000; }
+              .detail-row span { color: #666; }
+              .items-table { width: 100%; margin: 30px 0; border-collapse: collapse; }
+              .items-table th { background: #000; color: #fff; padding: 12px; text-align: left; }
+              .items-table td { padding: 12px; border-bottom: 1px solid #ddd; }
+              .total-section { text-align: right; margin-top: 30px; padding-top: 20px; border-top: 3px solid #000; }
+              .total-section h2 { font-size: 24px; color: #000; }
+              .footer { text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }
+              @media print { body { padding: 0; } .invoice-container { border: none; } }
+            </style>
+          </head>
+          <body>
+            <div class="invoice-container">
+              <div class="header">
+                <h1>HEALit Med Laboratories</h1>
+                <p>Kunnathpeedika Centre | Phone: 7356865161 | Email: info@healitlab.com</p>
+              </div>
+              
+              <div class="invoice-details">
+                <div class="detail-section">
+                  <h3>Bill To:</h3>
+                  <div class="detail-row"><strong>Name:</strong> <span>${patient.name}</span></div>
+                  <div class="detail-row"><strong>Age/Gender:</strong> <span>${patient.age} years / ${patient.gender}</span></div>
+                  <div class="detail-row"><strong>Phone:</strong> <span>${patient.phone}</span></div>
+                  ${patient.address ? `<div class="detail-row"><strong>Address:</strong> <span>${patient.address}</span></div>` : ''}
+                </div>
+                <div class="detail-section">
+                  <h3>Invoice Details:</h3>
+                  <div class="detail-row"><strong>Invoice No:</strong> <span>${visit.visitId}</span></div>
+                  <div class="detail-row"><strong>Date:</strong> <span>${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
+                  <div class="detail-row"><strong>Time:</strong> <span>${new Date().toLocaleTimeString('en-IN')}</span></div>
+                </div>
+              </div>
+              
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Test Description</th>
+                    <th style="text-align: right;">Amount (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>${profile?.name || 'Test Profile'}</strong></td>
+                    <td style="text-align: right;">₹${profile?.price || profile?.packagePrice || 0}</td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <div class="total-section">
+                <h2>Total Amount: ₹${profile?.price || profile?.packagePrice || 0}</h2>
+                <p style="color: #059669; font-weight: bold; margin-top: 10px;">✓ PAID</p>
+              </div>
+              
+              <div class="footer">
+                <p>Thank you for choosing HEALit Med Laboratories</p>
+                <p style="font-size: 12px; margin-top: 5px;">This is a computer-generated invoice</p>
+              </div>
+            </div>
+            <script>window.print();</script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      
+      // Mark invoice as generated and paid ONLY if first time
+      if (!visit.invoiceGenerated) {
+        markInvoiceGenerated(visitId);
+        toast.success('✅ Invoice generated & marked as PAID!');
+      } else {
+        toast.success('🖨️ Invoice re-printed!');
+      }
+      
+      loadData();
+    } catch (error) {
+      console.error('Invoice generation error:', error);
+      toast.error('Failed to generate invoice: ' + error.message);
+    }
+  };
 
   // Get patient info for a visit
   const getPatientForVisit = (visit) => {
     return patients.find(p => p.patientId === visit.patientId);
+  };
+  
+  // Delete patient handler
+  const handleDeletePatient = (visit) => {
+    const patient = getPatientForVisit(visit);
+    if (!patient) return;
+    
+    const confirmed = window.confirm(
+      `⚠️ DELETE PATIENT & ALL DATA\n\n` +
+      `Patient: ${patient.name}\n` +
+      `Age: ${patient.age}Y / ${patient.gender}\n` +
+      `Phone: ${patient.phone}\n\n` +
+      `This will permanently delete:\n` +
+      `• Patient record\n` +
+      `• All visits\n` +
+      `• All test results\n` +
+      `• All invoices\n\n` +
+      `This action CANNOT be undone!\n\n` +
+      `Are you sure you want to delete this patient?`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      deletePatient(patient.patientId);
+      toast.success(`✅ Patient "${patient.name}" deleted successfully`);
+      loadData();
+    } catch (error) {
+      toast.error('Failed to delete patient: ' + error.message);
+    }
   };
 
   const filteredVisits = visits.filter(visit => {
     const patient = getPatientForVisit(visit);
     if (!patient) return false;
     
-    return patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
            patient.phone.includes(searchTerm);
+    
+    // FIXED FILTER LOGIC:
+    // "Waiting" = Sample collected but results NOT entered (sample_times_set)
+    // "Completed" = Results entered and report generated (report_generated OR completed)
+    const matchesStatus = statusFilter === 'all' || 
+                         (statusFilter === 'waiting' && visit.status === 'sample_times_set') ||
+                         (statusFilter === 'completed' && (visit.status === 'report_generated' || visit.status === 'completed'));
+    
+    // Payment filter with safety check
+    const matchesPayment = paymentFilter === 'all' ||
+                          (paymentFilter === 'paid' && visit.paymentStatus === 'paid') ||
+                          (paymentFilter === 'unpaid' && (!visit.paymentStatus || visit.paymentStatus === 'unpaid'));
+    
+    // Date range filter
+    let matchesDate = true;
+    if (fromDate || toDate) {
+      const visitDate = new Date(visit.registeredAt || visit.createdAt);
+      if (fromDate) {
+        const from = new Date(fromDate);
+        from.setHours(0, 0, 0, 0);
+        matchesDate = matchesDate && visitDate >= from;
+      }
+      if (toDate) {
+        const to = new Date(toDate);
+        to.setHours(23, 59, 59, 999);
+        matchesDate = matchesDate && visitDate <= to;
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesPayment && matchesDate;
   });
 
   return (
@@ -147,11 +428,69 @@ const Patients = () => {
               className="search-input"
             />
           </div>
+          
+          {/* Date Range Filters */}
+          <div className="date-filters">
+            <div className="date-input-group">
+              <label>From:</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="date-input"
+              />
+            </div>
+            <div className="date-input-group">
+              <label>To:</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="date-input"
+              />
+            </div>
+            {(fromDate || toDate) && (
+              <button 
+                className="clear-dates-btn"
+                onClick={() => { setFromDate(''); setToDate(''); }}
+                title="Clear dates"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          
           <div className="status-legend">
-            <span className="status-pill status-registered">Registered</span>
-            <span className="status-pill status-sample">Sample Collected</span>
-            <span className="status-pill status-results">Results Entered</span>
-            <span className="status-pill status-completed">Completed</span>
+            <button 
+              className={`status-pill ${statusFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('all')}
+            >
+              All Patients
+            </button>
+            <button 
+              className={`status-pill status-registered ${statusFilter === 'waiting' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('waiting')}
+            >
+              <Clock size={14} /> Waiting
+            </button>
+            <button 
+              className={`status-pill status-completed ${statusFilter === 'completed' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('completed')}
+            >
+              <CheckCircle size={14} /> Completed
+            </button>
+            <button 
+              className={`status-pill ${paymentFilter === 'paid' ? 'active payment-paid' : ''}`}
+              onClick={() => setPaymentFilter(paymentFilter === 'paid' ? 'all' : 'paid')}
+            >
+              <CheckCircle size={14} /> Paid
+            </button>
+            <button 
+              className={`status-pill ${paymentFilter === 'unpaid' ? 'active payment-unpaid' : ''}`}
+              onClick={() => setPaymentFilter(paymentFilter === 'unpaid' ? 'all' : 'unpaid')}
+            >
+              <XCircle size={14} /> Unpaid
+            </button>
           </div>
         </div>
 
@@ -169,12 +508,14 @@ const Patients = () => {
             <table>
               <thead>
                 <tr>
-                  <th><User size={16} /> Patient Name</th>
-                  <th><Calendar size={16} /> Age/Gender</th>
-                  <th><Phone size={16} /> Phone</th>
-                  <th>Test Profile</th>
-                  <th><Calendar size={16} /> Visit Date</th>
-                  <th className="text-center">Status</th>
+                  <th><User size={14} /> Name</th>
+                  <th>Age/Sex</th>
+                  <th><Phone size={14} /> Phone</th>
+                  <th>Profile</th>
+                  <th>Current Step</th>
+                  <th className="text-center">PDF</th>
+                  <th className="text-center">Invoice</th>
+                  <th className="text-center">Payment</th>
                   <th className="text-center">Actions</th>
                 </tr>
               </thead>
@@ -185,19 +526,36 @@ const Patients = () => {
                   
                   const profile = visit.profileId ? getProfileById(visit.profileId) : null;
                   
-                  // Determine visit status
-                  let statusText = 'Registered';
-                  let statusClass = 'status-registered';
+                  // Determine CURRENT STEP and next action based on visit status
+                  let currentStep = '';
+                  let nextAction = '';
+                  let editLink = '';
                   
-                  if (visit.status === 'report_generated') {
-                    statusText = 'Completed';
-                    statusClass = 'status-completed';
-                  } else if (visit.status === 'results_entered') {
-                    statusText = 'Results Entered';
-                    statusClass = 'status-results';
+                  if (visit.status === 'tests_selected') {
+                    currentStep = 'Registered';
+                    nextAction = 'Set Sample Times';
+                    editLink = `/sample-times/${visit.visitId}`;
                   } else if (visit.status === 'sample_times_set') {
-                    statusText = 'Sample Collected';
-                    statusClass = 'status-sample';
+                    // Check if results are entered
+                    const hasResults = visit.reportedAt || (visit.tests && visit.tests.some(t => t.result?.value));
+                    
+                    if (hasResults) {
+                      currentStep = 'Results Entered';
+                      nextAction = 'Generate Report';
+                      editLink = `/results/${visit.visitId}`;
+                    } else {
+                      currentStep = 'Pending';
+                      nextAction = 'Enter Results';
+                      editLink = `/results/${visit.visitId}`;
+                    }
+                  } else if (visit.status === 'report_generated' || visit.status === 'completed') {
+                    currentStep = 'Completed';
+                    nextAction = visit.pdfGenerated ? 'View Report' : 'Generate PDF';
+                    editLink = `/patients/${visit.visitId}`;
+                  } else {
+                    currentStep = 'Unknown';
+                    nextAction = 'Check Status';
+                    editLink = `/patients/${visit.visitId}`;
                   }
                   
                   return (
@@ -208,35 +566,70 @@ const Patients = () => {
                           <span>{patient.name}</span>
                         </div>
                       </td>
-                      <td>{patient.age} yrs / {patient.gender}</td>
+                      <td>{patient.age}Y/{patient.gender.charAt(0)}</td>
                       <td className="phone-cell">{patient.phone}</td>
                       <td className="profile-cell">
                         <span className="profile-tag">{profile?.name || 'N/A'}</span>
                       </td>
-                      <td>{new Date(visit.createdAt).toLocaleDateString('en-IN', { 
-                        day: '2-digit', 
-                        month: 'short', 
-                        year: 'numeric' 
-                      })}</td>
-                      <td className="text-center">
-                        <span className={`status-badge ${statusClass}`}>
-                          {statusText}
-                        </span>
+                      <td>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                          <span className={`step-badge step-${currentStep.toLowerCase()}`}>{currentStep}</span>
+                          <span style={{fontSize: '0.7rem', color: '#666'}}>{nextAction}</span>
+                        </div>
                       </td>
                       <td className="text-center">
-                        <Button 
-                          size="small" 
-                          variant="outline"
-                          icon={Eye}
-                          onClick={() => {
-                            const targetId = visit.visitId || visit.id;
-                            if (targetId) {
-                              navigate(`/patients/${targetId}`);
-                            }
-                          }}
-                        >
-                          View
-                        </Button>
+                        {visit.pdfGenerated ? (
+                          <button className="icon-btn-success" onClick={() => handleGeneratePDF(visit.visitId)} title="Re-Print PDF">
+                            <FileText size={14} /> <span style={{fontSize: '0.65rem', marginLeft: '2px'}}>Re-Print</span>
+                          </button>
+                        ) : (
+                          <button className="icon-btn" onClick={() => handleGeneratePDF(visit.visitId)} title="Generate PDF">
+                            <FileText size={14} />
+                          </button>
+                        )}
+                      </td>
+                      <td className="text-center">
+                        {visit.invoiceGenerated ? (
+                          <button className="icon-btn-success" onClick={() => handleGenerateInvoice(visit.visitId)} title="Re-Print Invoice">
+                            <DollarSign size={14} /> <span style={{fontSize: '0.65rem', marginLeft: '2px'}}>Re-Print</span>
+                          </button>
+                        ) : (
+                          <button className="icon-btn" onClick={() => handleGenerateInvoice(visit.visitId)} title="Generate Invoice">
+                            <DollarSign size={14} />
+                          </button>
+                        )}
+                      </td>
+                      <td className="text-center">
+                        {visit.paymentStatus === 'paid' ? (
+                          <span className="payment-badge paid">Paid</span>
+                        ) : (
+                          <span className="payment-badge unpaid">Unpaid</span>
+                        )}
+                      </td>
+                      <td className="text-center">
+                        <div style={{display: 'flex', gap: '4px', justifyContent: 'center'}}>
+                          <button 
+                            className="icon-btn-edit" 
+                            onClick={() => navigate(editLink)}
+                            title={nextAction}
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            className="icon-btn-view" 
+                            onClick={() => navigate(`/patients/${visit.visitId}`)}
+                            title="View Details"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button 
+                            className="icon-btn-delete" 
+                            onClick={() => handleDeletePatient(visit)}
+                            title="Delete Patient"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

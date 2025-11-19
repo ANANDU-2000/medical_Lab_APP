@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, AlertCircle, Save, X, Package } from 'lucide-react';
 import { useAuthStore } from '../../store';
+import { getCurrentUser } from '../../services/authService';
 import { getProfiles, addProfile } from '../../features/shared/dataService';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -11,10 +12,12 @@ import './ProfileManager.css';
 const ProfileManager = () => {
   const { role } = useAuthStore();
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
   const [profiles, setProfiles] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState(null);
+  const [selectedProfiles, setSelectedProfiles] = useState([]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -24,16 +27,10 @@ const ProfileManager = () => {
   });
 
   const [newTest, setNewTest] = useState({
-    name: '',
-    code: '',
-    category: 'General',
+    description: '',
     unit: '',
-    refLow: '',
-    refHigh: '',
-    refLowFemale: '',
-    refHighFemale: '',
-    price: '',
-    inputType: 'number'
+    bioReference: '',
+    price: ''
   });
 
   // Load data
@@ -45,20 +42,6 @@ const ProfileManager = () => {
     setProfiles(getProfiles());
   };
 
-  // Permission check
-  if (role !== 'admin') {
-    return (
-      <div className="unauthorized-container">
-        <AlertCircle size={64} color="#DC2626" />
-        <h2>Access Denied</h2>
-        <p>Admin access only. You do not have permission to view this page.</p>
-        <Button variant="primary" onClick={() => navigate('/dashboard')}>
-          Back to Dashboard
-        </Button>
-      </div>
-    );
-  }
-
   const filteredProfiles = profiles.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -66,8 +49,8 @@ const ProfileManager = () => {
 
   // Add test to profile
   const handleAddTest = () => {
-    if (!newTest.name || !newTest.price) {
-      toast.error('Test name and price are required');
+    if (!newTest.description || !newTest.price) {
+      toast.error('Test description and price are required');
       return;
     }
 
@@ -75,10 +58,7 @@ const ProfileManager = () => {
       ...newTest,
       testId: `TEST_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       price: parseFloat(newTest.price) || 0,
-      refLow: newTest.refLow ? parseFloat(newTest.refLow) : null,
-      refHigh: newTest.refHigh ? parseFloat(newTest.refHigh) : null,
-      refLowFemale: newTest.refLowFemale ? parseFloat(newTest.refLowFemale) : null,
-      refHighFemale: newTest.refHighFemale ? parseFloat(newTest.refHighFemale) : null,
+      name: newTest.description // For compatibility
     };
 
     setFormData({
@@ -88,16 +68,10 @@ const ProfileManager = () => {
 
     // Reset test form
     setNewTest({
-      name: '',
-      code: '',
-      category: 'General',
+      description: '',
       unit: '',
-      refLow: '',
-      refHigh: '',
-      refLowFemale: '',
-      refHighFemale: '',
-      price: '',
-      inputType: 'number'
+      bioReference: '',
+      price: ''
     });
 
     toast.success('Test added to profile');
@@ -114,8 +88,11 @@ const ProfileManager = () => {
         name: formData.name,
         description: formData.description,
         packagePrice: parseFloat(formData.packagePrice) || 0,
-        testIds: formData.tests.map(t => t.testId), // Store test IDs
-        tests: formData.tests // Store full test objects
+        testIds: formData.tests.map(t => t.testId),
+        tests: formData.tests,
+        createdBy: currentUser?.userId || 'unknown',
+        createdByName: currentUser?.fullName || 'Unknown User',
+        createdByRole: role
       };
 
       if (editingProfile) {
@@ -123,7 +100,13 @@ const ProfileManager = () => {
         const allProfiles = JSON.parse(localStorage.getItem('healit_profiles') || '[]');
         const index = allProfiles.findIndex(p => p.profileId === editingProfile.profileId);
         if (index !== -1) {
-          allProfiles[index] = { ...allProfiles[index], ...profileData };
+          allProfiles[index] = { 
+            ...allProfiles[index], 
+            ...profileData,
+            updatedBy: currentUser?.userId || 'unknown',
+            updatedByName: currentUser?.fullName || 'Unknown User',
+            updatedAt: new Date().toISOString()
+          };
           localStorage.setItem('healit_profiles', JSON.stringify(allProfiles));
           toast.success('Profile updated successfully');
         }
@@ -154,19 +137,53 @@ const ProfileManager = () => {
   };
 
   const handleDeleteProfile = (profileId) => {
-    if (!confirm('Are you sure you want to deactivate this profile?')) return;
+    if (!confirm('Are you sure you want to DELETE this profile permanently? This cannot be undone.')) return;
 
     try {
       const allProfiles = JSON.parse(localStorage.getItem('healit_profiles') || '[]');
-      const index = allProfiles.findIndex(p => p.profileId === profileId);
-      if (index !== -1) {
-        allProfiles[index].active = false;
-        localStorage.setItem('healit_profiles', JSON.stringify(allProfiles));
-        toast.success('Profile deactivated successfully');
-        loadData();
-      }
+      const updatedProfiles = allProfiles.filter(p => p.profileId !== profileId);
+      localStorage.setItem('healit_profiles', JSON.stringify(updatedProfiles));
+      toast.success('Profile deleted successfully');
+      loadData();
+      setSelectedProfiles([]);
     } catch (error) {
-      toast.error('Failed to deactivate profile');
+      toast.error('Failed to delete profile');
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedProfiles.length === 0) {
+      toast.error('No profiles selected');
+      return;
+    }
+
+    if (!confirm(`Delete ${selectedProfiles.length} selected profile(s)? This cannot be undone.`)) return;
+
+    try {
+      const allProfiles = JSON.parse(localStorage.getItem('healit_profiles') || '[]');
+      const updatedProfiles = allProfiles.filter(p => !selectedProfiles.includes(p.profileId));
+      localStorage.setItem('healit_profiles', JSON.stringify(updatedProfiles));
+      toast.success(`${selectedProfiles.length} profile(s) deleted successfully`);
+      setSelectedProfiles([]);
+      loadData();
+    } catch (error) {
+      toast.error('Failed to delete profiles');
+    }
+  };
+
+  const toggleSelectProfile = (profileId) => {
+    setSelectedProfiles(prev =>
+      prev.includes(profileId)
+        ? prev.filter(id => id !== profileId)
+        : [...prev, profileId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedProfiles.length === filteredProfiles.length) {
+      setSelectedProfiles([]);
+    } else {
+      setSelectedProfiles(filteredProfiles.map(p => p.profileId));
     }
   };
 
@@ -194,16 +211,10 @@ const ProfileManager = () => {
       tests: []
     });
     setNewTest({
-      name: '',
-      code: '',
-      category: 'General',
+      description: '',
       unit: '',
-      refLow: '',
-      refHigh: '',
-      refLowFemale: '',
-      refHighFemale: '',
-      price: '',
-      inputType: 'number'
+      bioReference: '',
+      price: ''
     });
     setEditingProfile(null);
   };
@@ -235,19 +246,56 @@ const ProfileManager = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <div className="bulk-actions">
+          {filteredProfiles.length > 0 && (
+            <>
+              <Button
+                variant="outline"
+                size="small"
+                onClick={toggleSelectAll}
+              >
+                {selectedProfiles.length === filteredProfiles.length ? 'Deselect All' : 'Select All'}
+              </Button>
+              {selectedProfiles.length > 0 && (
+                <Button
+                  variant="danger"
+                  size="small"
+                  icon={Trash2}
+                  onClick={handleDeleteSelected}
+                >
+                  Delete Selected ({selectedProfiles.length})
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </Card>
 
       {/* Profiles Grid */}
       <div className="profiles-grid">
         {filteredProfiles.map(profile => (
-          <Card key={profile.profileId} className="profile-card">
+          <Card 
+            key={profile.profileId} 
+            className={`profile-card ${selectedProfiles.includes(profile.profileId) ? 'selected' : ''}`}
+          >
             <div className="profile-card-header">
+              <input
+                type="checkbox"
+                checked={selectedProfiles.includes(profile.profileId)}
+                onChange={() => toggleSelectProfile(profile.profileId)}
+                className="profile-checkbox"
+              />
               <div className="profile-icon">
                 <Package size={24} />
               </div>
               <div className="profile-info">
                 <h3>{profile.name}</h3>
                 {profile.description && <p className="profile-desc">{profile.description}</p>}
+                {profile.createdByName && (
+                  <p className="profile-creator">
+                    Created by {profile.createdByName} ({profile.createdByRole || 'admin'})
+                  </p>
+                )}
               </div>
             </div>
 
@@ -277,7 +325,7 @@ const ProfileManager = () => {
                 icon={Trash2}
                 onClick={() => handleDeleteProfile(profile.profileId)}
               >
-                Deactivate
+                Delete
               </Button>
             </div>
           </Card>
@@ -350,17 +398,11 @@ const ProfileManager = () => {
                     <table className="tests-edit-table">
                       <thead>
                         <tr>
-                          <th>Test Name</th>
-                          <th>Code</th>
-                          <th>Category</th>
-                          <th>Unit</th>
-                          <th>Ref Low (M)</th>
-                          <th>Ref High (M)</th>
-                          <th>Ref Low (F)</th>
-                          <th>Ref High (F)</th>
-                          <th>Price (₹)</th>
-                          <th>Type</th>
-                          <th></th>
+                          <th style={{ width: '40%' }}>Test Description</th>
+                          <th style={{ width: '15%' }}>Units</th>
+                          <th style={{ width: '25%' }}>Bio.Ref.Internal</th>
+                          <th style={{ width: '15%' }}>Price (₹)</th>
+                          <th style={{ width: '5%' }}></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -369,97 +411,42 @@ const ProfileManager = () => {
                             <td>
                               <input
                                 type="text"
-                                value={test.name}
-                                onChange={(e) => updateTestInProfile(test.testId, 'name', e.target.value)}
+                                value={test.description || test.name || ''}
+                                onChange={(e) => {
+                                  updateTestInProfile(test.testId, 'description', e.target.value);
+                                  updateTestInProfile(test.testId, 'name', e.target.value);
+                                }}
                                 className="table-input"
+                                placeholder="e.g., Hemoglobin"
                               />
-                            </td>
-                            <td>
-                              <input
-                                type="text"
-                                value={test.code || ''}
-                                onChange={(e) => updateTestInProfile(test.testId, 'code', e.target.value)}
-                                className="table-input small"
-                              />
-                            </td>
-                            <td>
-                              <select
-                                value={test.category}
-                                onChange={(e) => updateTestInProfile(test.testId, 'category', e.target.value)}
-                                className="table-input"
-                              >
-                                <option value="General">General</option>
-                                <option value="Hematology">Hematology</option>
-                                <option value="Biochemistry">Biochemistry</option>
-                                <option value="Serology">Serology</option>
-                                <option value="Urine">Urine</option>
-                                <option value="Stool">Stool</option>
-                                <option value="Microbiology">Microbiology</option>
-                              </select>
                             </td>
                             <td>
                               <input
                                 type="text"
                                 value={test.unit || ''}
                                 onChange={(e) => updateTestInProfile(test.testId, 'unit', e.target.value)}
-                                className="table-input small"
-                                placeholder="g/dL"
+                                className="table-input"
+                                placeholder="g/dL, mg/dL"
                               />
                             </td>
                             <td>
                               <input
-                                type="number"
-                                step="0.01"
-                                value={test.refLow || ''}
-                                onChange={(e) => updateTestInProfile(test.testId, 'refLow', e.target.value)}
-                                className="table-input small"
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={test.refHigh || ''}
-                                onChange={(e) => updateTestInProfile(test.testId, 'refHigh', e.target.value)}
-                                className="table-input small"
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={test.refLowFemale || ''}
-                                onChange={(e) => updateTestInProfile(test.testId, 'refLowFemale', e.target.value)}
-                                className="table-input small"
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={test.refHighFemale || ''}
-                                onChange={(e) => updateTestInProfile(test.testId, 'refHighFemale', e.target.value)}
-                                className="table-input small"
+                                type="text"
+                                value={test.bioReference || ''}
+                                onChange={(e) => updateTestInProfile(test.testId, 'bioReference', e.target.value)}
+                                className="table-input"
+                                placeholder="13-17 g/dL (M), 12-15 g/dL (F)"
                               />
                             </td>
                             <td>
                               <input
                                 type="number"
                                 value={test.price || ''}
-                                onChange={(e) => updateTestInProfile(test.testId, 'price', e.target.value)}
-                                className="table-input small"
+                                onChange={(e) => updateTestInProfile(test.testId, 'price', parseFloat(e.target.value) || 0)}
+                                className="table-input"
+                                min="0"
+                                step="0.01"
                               />
-                            </td>
-                            <td>
-                              <select
-                                value={test.inputType}
-                                onChange={(e) => updateTestInProfile(test.testId, 'inputType', e.target.value)}
-                                className="table-input small"
-                              >
-                                <option value="number">Number</option>
-                                <option value="text">Text</option>
-                                <option value="dropdown">Dropdown</option>
-                              </select>
                             </td>
                             <td>
                               <button
@@ -481,95 +468,35 @@ const ProfileManager = () => {
               </div>
 
               <div className="form-section add-test-section">
-                <h3>Create New Test</h3>
-                <div className="test-form-grid">
+                <h3>Add New Test</h3>
+                <div className="test-form-grid-simple">
                   <div className="form-group">
-                    <label>Test Name *</label>
+                    <label>Test Description *</label>
                     <input
                       type="text"
-                      value={newTest.name}
-                      onChange={(e) => setNewTest({ ...newTest, name: e.target.value })}
-                      placeholder="e.g., Hemoglobin"
+                      value={newTest.description}
+                      onChange={(e) => setNewTest({ ...newTest, description: e.target.value })}
+                      placeholder="e.g., Hemoglobin, Blood Sugar Fasting"
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Test Code</label>
-                    <input
-                      type="text"
-                      value={newTest.code}
-                      onChange={(e) => setNewTest({ ...newTest, code: e.target.value })}
-                      placeholder="e.g., HB"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Category</label>
-                    <select
-                      value={newTest.category}
-                      onChange={(e) => setNewTest({ ...newTest, category: e.target.value })}
-                    >
-                      <option value="General">General</option>
-                      <option value="Hematology">Hematology</option>
-                      <option value="Biochemistry">Biochemistry</option>
-                      <option value="Serology">Serology</option>
-                      <option value="Urine">Urine</option>
-                      <option value="Stool">Stool</option>
-                      <option value="Microbiology">Microbiology</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Unit</label>
+                    <label>Units</label>
                     <input
                       type="text"
                       value={newTest.unit}
                       onChange={(e) => setNewTest({ ...newTest, unit: e.target.value })}
-                      placeholder="e.g., g/dL"
+                      placeholder="e.g., g/dL, mg/dL, %"
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Ref Low (Male)</label>
+                    <label>Bio.Ref.Internal</label>
                     <input
-                      type="number"
-                      step="0.01"
-                      value={newTest.refLow}
-                      onChange={(e) => setNewTest({ ...newTest, refLow: e.target.value })}
-                      placeholder="Min value"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Ref High (Male)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={newTest.refHigh}
-                      onChange={(e) => setNewTest({ ...newTest, refHigh: e.target.value })}
-                      placeholder="Max value"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Ref Low (Female)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={newTest.refLowFemale}
-                      onChange={(e) => setNewTest({ ...newTest, refLowFemale: e.target.value })}
-                      placeholder="Min value"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Ref High (Female)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={newTest.refHighFemale}
-                      onChange={(e) => setNewTest({ ...newTest, refHighFemale: e.target.value })}
-                      placeholder="Max value"
+                      type="text"
+                      value={newTest.bioReference}
+                      onChange={(e) => setNewTest({ ...newTest, bioReference: e.target.value })}
+                      placeholder="e.g., 13-17 (M), 12-15 (F)"
                     />
                   </div>
 
@@ -581,19 +508,8 @@ const ProfileManager = () => {
                       onChange={(e) => setNewTest({ ...newTest, price: e.target.value })}
                       placeholder="Test price"
                       min="0"
+                      step="0.01"
                     />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Input Type</label>
-                    <select
-                      value={newTest.inputType}
-                      onChange={(e) => setNewTest({ ...newTest, inputType: e.target.value })}
-                    >
-                      <option value="number">Number</option>
-                      <option value="text">Text</option>
-                      <option value="dropdown">Dropdown</option>
-                    </select>
                   </div>
                 </div>
 

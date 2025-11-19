@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, FileText, Receipt, Check, Loader, Download, Printer, Share2, Mail, AlertCircle, TrendingUp, TrendingDown, MessageCircle, TestTube2, Plus, Search, X } from 'lucide-react';
+import { ArrowLeft, Save, FileText, Receipt, Check, Loader, Download, Printer, Share2, Mail, AlertCircle, TrendingUp, TrendingDown, MessageCircle, TestTube2, Plus, Search, X, Home } from 'lucide-react';
 import { getVisitById, updateVisitResults, getSettings, updateVisit, getPatientById, getProfileById, getTestsMaster } from '../shared/dataService';
 import { useAuthStore } from '../../store';
 import { getCurrentUser, getUsers } from '../../services/authService';
 import { downloadReportPDF, printReportPDF, shareViaWhatsApp, shareViaEmail } from '../../utils/pdfGenerator';
-import { downloadInvoice } from '../../utils/invoicePdfGenerator';
+import { downloadInvoice, printInvoice } from '../../utils/invoicePdfGenerator';
 import Button from '../../components/ui/Button';
 import toast from 'react-hot-toast';
 import './ResultEntry.css';
@@ -49,6 +49,13 @@ const ResultEntryPage = () => {
     if (!visitData) {
       toast.error('Visit not found');
       navigate('/patients');
+      return;
+    }
+    
+    // CRITICAL RESTRICTION: Can't enter results if sample times not set
+    if (!visitData.collectedAt || !visitData.receivedAt || visitData.status === 'tests_selected') {
+      toast.error('❌ Cannot enter results: Sample times must be set first!', { duration: 5000 });
+      navigate(`/sample-times/${visitId}`);
       return;
     }
     
@@ -157,15 +164,28 @@ const ResultEntryPage = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [results]);
 
-  // Handle result input change
+  // Handle result input change with validation
   const handleResultChange = (testId, value) => {
     const test = visit.tests.find(t => t.testId === testId);
     let status = 'NORMAL';
     
-    // Auto-detect HIGH/LOW for numeric values
-    if (test.inputType_snapshot === 'number' && value !== '') {
+    // Validate based on input type
+    if (test.inputType_snapshot === 'number') {
+      // Allow empty or valid numbers
+      if (value !== '' && isNaN(parseFloat(value))) {
+        toast.error('Please enter a valid number');
+        return;
+      }
+      
       const numValue = parseFloat(value);
       if (!isNaN(numValue)) {
+        // Check for negative values
+        if (numValue < 0) {
+          toast.error('Value cannot be negative');
+          return;
+        }
+        
+        // Auto-detect HIGH/LOW
         if (test.refHigh_snapshot && numValue > parseFloat(test.refHigh_snapshot)) {
           status = 'HIGH';
         } else if (test.refLow_snapshot && numValue < parseFloat(test.refLow_snapshot)) {
@@ -174,22 +194,49 @@ const ResultEntryPage = () => {
       }
     }
     
+    // Validate text length
+    if (test.inputType_snapshot === 'text' && value.length > 200) {
+      toast.error('Text value too long (max 200 characters)');
+      return;
+    }
+    
     setResults(prev => ({
       ...prev,
       [testId]: { value, status }
     }));
   };
 
-  // Handle price change
+  // Handle price change with validation
   const handlePriceChange = (testIndex, newPrice) => {
+    const priceValue = parseFloat(newPrice);
+    
+    // Validate price
+    if (isNaN(priceValue) || priceValue < 0) {
+      toast.error('Please enter a valid price (must be 0 or greater)');
+      return;
+    }
+    
+    if (priceValue > 100000) {
+      toast.error('Price too high (max ₹100,000)');
+      return;
+    }
+    
     setVisit(prev => {
       const updatedTests = [...prev.tests];
       updatedTests[testIndex] = {
         ...updatedTests[testIndex],
-        price_snapshot: parseFloat(newPrice) || 0
+        price_snapshot: priceValue
       };
       return { ...prev, tests: updatedTests };
     });
+    
+    // Trigger auto-save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      handleSave();
+    }, 2000);
   };
 
   // Handle remove test
@@ -257,14 +304,30 @@ const ResultEntryPage = () => {
     setTestSearchQuery('');
   };
 
-  // Handle discount change
+  // Handle discount change with validation
   const handleDiscountChange = (newDiscount) => {
-    const discountValue = parseFloat(newDiscount) || 0;
+    const discountValue = parseFloat(newDiscount);
+    
+    // Validate discount
+    if (isNaN(discountValue)) {
+      toast.error('Please enter a valid discount percentage');
+      return;
+    }
+    
     if (discountValue < 0 || discountValue > 100) {
       toast.error('Discount must be between 0-100%');
       return;
     }
+    
     setDiscount(discountValue);
+    
+    // Trigger auto-save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      handleSave();
+    }, 2000);
   };
 
   // Validate before generating report
@@ -292,7 +355,7 @@ const ResultEntryPage = () => {
     return errors;
   };
 
-  // Generate Report PDF
+  // Generate BOTH PDF Report AND Invoice together
   const handleGenerateReport = async () => {
     const errors = validateBeforeGenerate();
     
@@ -311,7 +374,7 @@ const ResultEntryPage = () => {
     
     // Confirm action
     const confirmed = window.confirm(
-      'Generate Result PDF — this will set Reported On to current time. Continue?'
+      'Generate PDF Report + Invoice — This will mark as PAID and complete the visit. Continue?'
     );
     
     if (!confirmed) return;
@@ -322,8 +385,8 @@ const ResultEntryPage = () => {
       // Save current results first
       await handleSave();
       
-      // Set reportedAt to current timestamp
-      const reportedAt = new Date().toISOString();
+      // Set reportedAt and paidAt to current timestamp
+      const now = new Date().toISOString();
       
       // Update visit with reportedAt, results, and signing technician
       const updatedTests = visit.tests.map(test => ({
@@ -333,27 +396,44 @@ const ResultEntryPage = () => {
       }));
       
       const updatedVisit = updateVisit(visitId, {
-        reportedAt,
+        reportedAt: now,
         tests: updatedTests,
         signing_technician_id: selectedTechnicianId,
         discount,
-        status: 'report_generated'
+        status: 'completed',
+        paymentStatus: 'paid',
+        paidAt: now,
+        pdfGenerated: true,
+        invoiceGenerated: true,
+        finalAmount: billing.finalAmount,
+        subtotal: billing.subtotal,
+        discountAmount: billing.discountAmount
       });
       
+      // Force data update event to refresh ALL pages
+      window.dispatchEvent(new CustomEvent('healit-data-update', { 
+        detail: { 
+          type: 'visit_completed', 
+          visitId,
+          status: 'completed',
+          paymentStatus: 'paid'
+        } 
+      }));
+      
       // Audit log
-      console.log('AUDIT: GENERATE_REPORT', {
+      console.log('AUDIT: GENERATE_BOTH', {
         userId: currentUser?.userId,
         visitId,
-        action: 'GENERATE_REPORT',
-        signingTechnicianId: selectedTechnicianId,
-        timestamp: reportedAt,
+        action: 'GENERATE_REPORT_AND_INVOICE',
+        timestamp: now,
         details: {
           testsCount: visit.tests.length,
-          resultsEntered: Object.values(results).filter(r => r.value !== '').length
+          resultsEntered: Object.values(results).filter(r => r.value !== '').length,
+          totalAmount: billing.finalAmount
         }
       });
       
-      // Generate PDF with technician signature
+      // Generate PDF Report - Open in new tab for printing
       const visitData = {
         ...updatedVisit,
         patient,
@@ -361,38 +441,73 @@ const ResultEntryPage = () => {
         signingTechnician: selectedTechnician
       };
       
-      // DEBUG: Log test data to see what's being passed to PDF
-      console.log('PDF Generation - Visit Data:', {
-        testsCount: visitData.tests?.length,
-        firstTest: visitData.tests?.[0],
-        patient: visitData.patient?.name,
-        profile: visitData.profile?.name
-      });
+      printReportPDF(visitData);
+      toast.success('✅ PDF Report opened for printing!');
       
-      downloadReportPDF(visitData);
-      toast.success('Report PDF generated successfully!');
-      setShowShareOptions(true);
-      
-      // Update local state
-      setVisit(updatedVisit);
-      
-      // Reload to show locked state
+      // Wait 1 second then generate invoice
       setTimeout(() => {
-        window.location.reload();
+        // Prepare invoice data
+        const invoiceData = {
+          patient: {
+            name: patient.name,
+            phone: patient.phone,
+            age: patient.age,
+            gender: patient.gender,
+            visitId: visit.visitId,
+            date: visit.createdAt,
+            paymentStatus: 'Paid'
+          },
+          invoice: {
+            invoiceNumber: `INV-${visit.visitId}`,
+            generatedOn: now,
+            staffName: currentUser?.fullName || currentUser?.username,
+            method: visit.paymentMethod || 'Cash'
+          },
+          items: visit.tests.map(test => ({
+            name: test.name_snapshot || test.name || 'Test',
+            price: test.price_snapshot || test.price || 0,
+            qty: 1
+          })),
+          discount: billing.discountAmount,
+          subtotal: billing.subtotal,
+          finalTotal: billing.finalAmount,
+          amountPaid: billing.finalAmount
+        };
+        
+        printInvoice(invoiceData);
+        toast.success('✅ Invoice opened for printing!');
+        
+        // Update local state
+        setVisit(updatedVisit);
+        
+        // Auto-redirect to dashboard after 3 seconds
+        setTimeout(() => {
+          toast.success('Redirecting to dashboard...');
+          navigate('/dashboard');
+        }, 3000);
       }, 1000);
     } catch (error) {
-      console.error('PDF generation error:', error);
-      toast.error('Failed to generate PDF: ' + error.message);
+      console.error('Generation error:', error);
+      toast.error('Failed to generate documents: ' + error.message);
     } finally {
-      setIsGeneratingPDF(false);
+      setTimeout(() => {
+        setIsGeneratingPDF(false);
+      }, 3000);
     }
   };
 
-  // Generate Invoice PDF
+  // Generate Invoice PDF with auto-redirect
   const handleGenerateInvoice = async () => {
     try {
       // Save first
       await handleSave();
+      
+      // Update payment status to paid
+      const updatedVisit = updateVisit(visitId, {
+        paymentStatus: 'paid',
+        paidAt: new Date().toISOString(),
+        discount
+      });
       
       // Prepare invoice data
       const invoiceData = {
@@ -403,7 +518,7 @@ const ResultEntryPage = () => {
           gender: patient.gender,
           visitId: visit.visitId,
           date: visit.createdAt,
-          paymentStatus: visit.paymentStatus || 'Paid'
+          paymentStatus: 'Paid'
         },
         invoice: {
           invoiceNumber: `INV-${visit.visitId}`,
@@ -427,6 +542,9 @@ const ResultEntryPage = () => {
       
       toast.success('Invoice PDF generated successfully!');
       
+      // Update local state
+      setVisit(updatedVisit);
+      
       // Log audit
       console.log('AUDIT: GENERATE_INVOICE', {
         userId: currentUser?.userId,
@@ -435,6 +553,12 @@ const ResultEntryPage = () => {
         timestamp: new Date().toISOString(),
         amount: billing.finalAmount
       });
+      
+      // Auto-redirect to dashboard after 2 seconds
+      setTimeout(() => {
+        toast.success('Redirecting to dashboard...');
+        navigate('/dashboard');
+      }, 2000);
     } catch (error) {
       console.error('Invoice generation error:', error);
       toast.error('Failed to generate invoice: ' + error.message);
@@ -628,6 +752,9 @@ const ResultEntryPage = () => {
         
         {/* Quick Action Icons */}
         <div className="header-actions-result">
+          <Button variant="ghost" size="small" onClick={() => navigate('/dashboard')} icon={Home}>
+            Home
+          </Button>
           <button className="icon-btn-glass" onClick={handleShareWhatsApp} title="Share via WhatsApp">
             <MessageCircle size={20} />
           </button>
@@ -637,12 +764,6 @@ const ResultEntryPage = () => {
           <button className="icon-btn-glass" onClick={handleShareEmail} title="Email">
             <Mail size={20} />
           </button>
-          <Button variant="primary" onClick={handleGenerateReport} disabled={isGeneratingPDF} icon={FileText}>
-            {isGeneratingPDF ? 'Generating...' : 'PDF Report'}
-          </Button>
-          <Button variant="outline" onClick={handleGenerateInvoice} icon={Receipt}>
-            Invoice
-          </Button>
         </div>
       </div>
 
@@ -826,21 +947,12 @@ const ResultEntryPage = () => {
             </div>
             
             <Button
-              variant="outline"
-              onClick={handleSave}
-              icon={Save}
-              disabled={!canEditResults}
-            >
-              Save Results
-            </Button>
-            
-            <Button
               variant="primary"
               onClick={handleGenerateReport}
               icon={FileText}
               disabled={isGeneratingPDF || Object.values(results).filter(r => r.value).length === 0}
             >
-              {isGeneratingPDF ? 'Generating...' : 'Generate PDF Report'}
+              {isGeneratingPDF ? 'Generating...' : 'Generate PDF Report + Invoice'}
             </Button>
           </div>
           

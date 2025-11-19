@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Download, Share2, Printer, Mail, User, Phone, MapPin, Calendar, Stethoscope, Edit, X, Save, Activity } from 'lucide-react';
+import { ArrowLeft, FileText, Download, Share2, Printer, Mail, User, Phone, MapPin, Calendar, Stethoscope, Edit, X, Save, Activity, DollarSign, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getProfileTemplate } from '../../features/profile-manager/profileTemplates';
 import { downloadReportPDF, printReportPDF, shareViaWhatsApp, shareViaEmail } from '../../utils/pdfGenerator';
-import { getVisitById, getPatientById, getProfileById, updatePatient } from '../../features/shared/dataService';
+import { getVisitById, getPatientById, getProfileById, updatePatient, markPDFGenerated, markInvoiceGenerated } from '../../features/shared/dataService';
 import { getTechnicians } from '../../services/authService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -30,33 +30,212 @@ const PatientDetails = () => {
   
   // Load visit data from new data service
   useEffect(() => {
-    const loadVisitData = () => {
-      try {
-        const visitData = getVisitById(id);
-        if (!visitData) {
-          setLoading(false);
-          return;
-        }
-        
-        const patientData = getPatientById(visitData.patientId);
-        const profileData = getProfileById(visitData.profileId);
-        
-        setVisit(visitData);
-        setPatient(patientData);
-        setProfile(profileData);
-      } catch (error) {
-        console.error('Error loading visit data:', error);
-        toast.error('Failed to load visit details');
-      } finally {
-        setLoading(false);
-      }
+    loadVisitData();
+    
+    // Listen for real-time data updates
+    const handleDataUpdate = () => {
+      loadVisitData();
     };
     
-    loadVisitData();
+    window.addEventListener('healit-data-update', handleDataUpdate);
+    return () => window.removeEventListener('healit-data-update', handleDataUpdate);
   }, [id]);
 
+  const loadVisitData = () => {
+    try {
+      const visitData = getVisitById(id);
+      if (!visitData) {
+        setLoading(false);
+        return;
+      }
+      
+      const patientData = getPatientById(visitData.patientId);
+      const profileData = getProfileById(visitData.profileId);
+      
+      setVisit(visitData);
+      setPatient(patientData);
+      setProfile(profileData);
+    } catch (error) {
+      console.error('Error loading visit data:', error);
+      toast.error('Failed to load visit details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGeneratePDF = async () => {
+    // CRITICAL VALIDATION: Results must be entered
+    if (!hasResults || !visit.tests || visit.tests.length === 0) {
+      toast.error('❌ Cannot generate PDF: Test results must be entered and report generated first!');
+      return;
+    }
+
+    // WARNING: If already generated, ask for confirmation
+    if (visit.pdfGenerated) {
+      const confirmReprint = window.confirm('ℹ️ PDF already generated!\n\nDo you want to RE-PRINT this report?');
+      if (!confirmReprint) return;
+    }
+
+    setIsGenerating(true);
+    try {
+      let signingTechnician = null;
+      if (visit.signing_technician_id) {
+        const technicians = getTechnicians();
+        signingTechnician = technicians.find(t => t.technicianId === visit.signing_technician_id);
+      }
+      
+      const visitData = {
+        ...visit,
+        patient,
+        profile,
+        signingTechnician
+      };
+      
+      // Use EXISTING advanced template
+      downloadReportPDF(visitData);
+      
+      if (!visit.pdfGenerated) {
+        markPDFGenerated(id);
+        toast.success('✅ PDF generated successfully!');
+      } else {
+        toast.success('🖨️ PDF re-printed successfully!');
+      }
+      
+      loadVisitData();
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast.error('Failed to generate PDF: ' + error.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateInvoice = async () => {
+    // CRITICAL VALIDATION: Results must be entered
+    if (!hasResults || !visit.tests || visit.tests.length === 0) {
+      toast.error('❌ Cannot generate invoice: Test results must be entered and report generated first!');
+      return;
+    }
+
+    // CRITICAL WARNING: If already generated and paid
+    if (visit.invoiceGenerated && visit.paymentStatus === 'paid') {
+      const confirmReInvoice = window.confirm('⚠️ INVOICE ALREADY GENERATED & PAID!\n\nPatient: ' + patient.name + '\nPaid Amount: ₹' + (profile?.price || profile?.packagePrice || 0) + '\n\nAre you sure you want to RE-PRINT this invoice?\n\n(This will NOT change payment status)');
+      if (!confirmReInvoice) return;
+    }
+
+    setIsGenerating(true);
+    try {
+      // Use ADVANCED Invoice template
+      const printWindow = window.open('', '', 'width=800,height=600');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Invoice - ${visit.visitId}</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: 'Arial', sans-serif; padding: 40px; background: #fff; }
+              .invoice-container { max-width: 800px; margin: 0 auto; border: 2px solid #000; padding: 30px; }
+              .header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #000; padding-bottom: 20px; }
+              .header h1 { font-size: 28px; color: #000; margin-bottom: 5px; }
+              .header p { font-size: 16px; color: #666; }
+              .invoice-details { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+              .detail-section h3 { font-size: 14px; color: #000; margin-bottom: 10px; text-transform: uppercase; }
+              .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted #ddd; }
+              .detail-row strong { color: #000; }
+              .detail-row span { color: #666; }
+              .items-table { width: 100%; margin: 30px 0; border-collapse: collapse; }
+              .items-table th { background: #000; color: #fff; padding: 12px; text-align: left; }
+              .items-table td { padding: 12px; border-bottom: 1px solid #ddd; }
+              .total-section { text-align: right; margin-top: 30px; padding-top: 20px; border-top: 3px solid #000; }
+              .total-section h2 { font-size: 24px; color: #000; }
+              .footer { text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }
+              @media print { body { padding: 0; } .invoice-container { border: none; } }
+            </style>
+          </head>
+          <body>
+            <div class="invoice-container">
+              <div class="header">
+                <h1>HEALit Med Laboratories</h1>
+                <p>Kunnathpeedika Centre | Phone: 7356865161 | Email: info@healitlab.com</p>
+              </div>
+              
+              <div class="invoice-details">
+                <div class="detail-section">
+                  <h3>Bill To:</h3>
+                  <div class="detail-row"><strong>Name:</strong> <span>${patient.name}</span></div>
+                  <div class="detail-row"><strong>Age/Gender:</strong> <span>${patient.age} years / ${patient.gender}</span></div>
+                  <div class="detail-row"><strong>Phone:</strong> <span>${patient.phone}</span></div>
+                  ${patient.address ? `<div class="detail-row"><strong>Address:</strong> <span>${patient.address}</span></div>` : ''}
+                </div>
+                <div class="detail-section">
+                  <h3>Invoice Details:</h3>
+                  <div class="detail-row"><strong>Invoice No:</strong> <span>${visit.visitId}</span></div>
+                  <div class="detail-row"><strong>Date:</strong> <span>${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
+                  <div class="detail-row"><strong>Time:</strong> <span>${new Date().toLocaleTimeString('en-IN')}</span></div>
+                </div>
+              </div>
+              
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Test Description</th>
+                    <th style="text-align: right;">Amount (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>${profile?.name || 'Test Profile'}</strong></td>
+                    <td style="text-align: right;">₹${profile?.price || profile?.packagePrice || 0}</td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <div class="total-section">
+                <h2>Total Amount: ₹${profile?.price || profile?.packagePrice || 0}</h2>
+                <p style="color: #059669; font-weight: bold; margin-top: 10px;">✓ PAID</p>
+              </div>
+              
+              <div class="footer">
+                <p>Thank you for choosing HEALit Med Laboratories</p>
+                <p style="font-size: 12px; margin-top: 5px;">This is a computer-generated invoice</p>
+              </div>
+            </div>
+            <script>window.print();</script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      
+      // Mark invoice as generated and paid ONLY if first time
+      if (!visit.invoiceGenerated) {
+        markInvoiceGenerated(id);
+        toast.success('✅ Invoice generated & marked as PAID!');
+      } else {
+        toast.success('🖨️ Invoice re-printed!');
+      }
+      
+      loadVisitData();
+    } catch (error) {
+      console.error('Invoice generation error:', error);
+      toast.error('Failed to generate invoice: ' + error.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const visitStatus = visit?.status || 'tests_selected';
-  const hasResults = visitStatus === 'report_generated' && visit?.tests && visit.tests.length > 0 && visit.reportedAt;
+  
+  // CRITICAL FIX: hasResults must check BOTH status AND actual test values
+  const hasResults = (
+    (visitStatus === 'report_generated' || visitStatus === 'completed') && 
+    visit?.reportedAt && 
+    visit?.tests && 
+    visit.tests.length > 0 &&
+    visit.tests.some(t => t.result?.value)
+  );
+  // FIXED WORKFLOW STEPS: Include completed status
+  // ACTUAL STATUS FLOW: tests_selected → sample_times_set → report_generated → completed
   const workflowSteps = [
     {
       id: 'tests_selected',
@@ -65,26 +244,27 @@ const PatientDetails = () => {
     },
     {
       id: 'sample_times_set',
-      label: 'Sample Details',
-      description: 'Collection timings recorded'
-    },
-    {
-      id: 'results_entered',
-      label: 'Results Entry',
-      description: 'All test results entered'
+      label: 'Sample Collection',
+      description: 'Sample collected & timings recorded'
     },
     {
       id: 'report_generated',
       label: 'Report Ready',
-      description: 'Report generated & shared'
+      description: 'Results entered & report generated'
+    },
+    {
+      id: 'completed',
+      label: 'Completed & Paid',
+      description: 'PDF & Invoice generated, payment received'
     }
   ];
   const currentStepIndex = Math.max(
     0,
     workflowSteps.findIndex((step) => step.id === visitStatus)
   );
-  const canEditSampleTime = visitStatus !== 'report_generated';
-  const canEnterResults = ['sample_times_set', 'results_entered', 'report_generated'].includes(visitStatus);
+  const canEditSampleTime = !['report_generated', 'completed'].includes(visitStatus);
+  // Can enter results if sample times are set (sample_times_set) or report already generated
+  const canEnterResults = ['sample_times_set', 'report_generated', 'completed'].includes(visitStatus);
 
   if (loading) {
     return (
@@ -417,6 +597,33 @@ const PatientDetails = () => {
               >
                 Enter / Review Results
               </Button>
+              
+              <div className="divider" style={{margin: '12px 0', borderTop: '1px solid #E5E5E5'}}></div>
+              
+              <Button
+                variant={visit.pdfGenerated ? "outline" : "secondary"}
+                fullWidth
+                icon={visit.pdfGenerated ? CheckCircle : FileText}
+                onClick={handleGeneratePDF}
+                disabled={!hasResults}
+              >
+                {visit.pdfGenerated ? '🖨️ Re-Print PDF' : (hasResults ? 'Generate PDF' : '⚠️ No Results Yet')}
+              </Button>
+              <Button
+                variant={visit.invoiceGenerated ? "outline" : "primary"}
+                fullWidth
+                icon={visit.invoiceGenerated ? CheckCircle : DollarSign}
+                onClick={handleGenerateInvoice}
+                disabled={!hasResults}
+              >
+                {visit.invoiceGenerated ? '🖨️ Re-Print Invoice' : (hasResults ? 'Generate Invoice' : '⚠️ No Results Yet')}
+              </Button>
+              
+              {visit.paymentStatus === 'paid' && (
+                <div className="payment-status-indicator" style={{padding: '8px', background: '#D1FAE5', borderRadius: '8px', textAlign: 'center', marginTop: '8px'}}>
+                  <span style={{color: '#065F46', fontWeight: 600, fontSize: '0.875rem'}}>✓ Payment Received</span>
+                </div>
+              )}
             </div>
           </Card>
 

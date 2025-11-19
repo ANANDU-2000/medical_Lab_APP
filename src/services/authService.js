@@ -27,6 +27,14 @@ export const getUserById = (userId) => {
 };
 
 /**
+ * Get user by username
+ */
+export const getUserByUsername = (username) => {
+  const users = getUsers();
+  return users.find(u => u.username === username);
+};
+
+/**
  * Get user by email
  */
 export const getUserByEmail = (email) => {
@@ -45,8 +53,14 @@ export const createUser = (userData) => {
     throw new Error('Email already exists');
   }
   
+  // Check if username already exists
+  if (userData.username && getUserByUsername(userData.username)) {
+    throw new Error('Username already exists');
+  }
+  
   const newUser = {
     userId: `USER_${Date.now()}`,
+    username: userData.username || userData.email.split('@')[0], // Auto-generate from email if not provided
     email: userData.email.toLowerCase(),
     password: userData.password, // In production: hash with bcrypt
     fullName: userData.fullName,
@@ -84,6 +98,13 @@ export const updateUser = (userId, updates) => {
   
   localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
   
+  // Update current user if it's the same user
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.userId === userId) {
+    const { password, ...userWithoutPassword } = users[index];
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(userWithoutPassword));
+  }
+  
   const { password, ...userWithoutPassword } = users[index];
   return userWithoutPassword;
 };
@@ -108,6 +129,46 @@ export const deleteUser = (userId) => {
   
   localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(filteredUsers));
   return true;
+};
+
+/**
+ * Change user password (requires old password)
+ * @param {string} userId 
+ * @param {string} oldPassword 
+ * @param {string} newPassword 
+ * @returns {Object}
+ */
+export const changePassword = (userId, oldPassword, newPassword) => {
+  const users = getUsers();
+  const user = users.find(u => u.userId === userId);
+  
+  if (!user) {
+    throw new Error('User not found');
+  }
+  
+  if (user.password !== oldPassword) {
+    throw new Error('Current password is incorrect');
+  }
+  
+  if (newPassword.length < 6) {
+    throw new Error('New password must be at least 6 characters');
+  }
+  
+  return updateUser(userId, { password: newPassword });
+};
+
+/**
+ * Admin reset password (no old password required)
+ * @param {string} userId 
+ * @param {string} newPassword 
+ * @returns {Object}
+ */
+export const adminResetPassword = (userId, newPassword) => {
+  if (newPassword.length < 6) {
+    throw new Error('Password must be at least 6 characters');
+  }
+  
+  return updateUser(userId, { password: newPassword });
 };
 
 /**
@@ -163,27 +224,31 @@ const recordLoginAttempt = (email, success) => {
 };
 
 /**
- * Login
+ * Login with username OR email + password
  */
-export const login = (email, password) => {
+export const login = (usernameOrEmail, password) => {
   // Check rate limiting (5 attempts per minute)
-  checkRateLimit(email);
+  checkRateLimit(usernameOrEmail);
   
-  const user = getUserByEmail(email);
+  // Try to find user by username first, then by email
+  let user = getUserByUsername(usernameOrEmail);
+  if (!user) {
+    user = getUserByEmail(usernameOrEmail);
+  }
   
   if (!user) {
-    recordLoginAttempt(email, false);
-    throw new Error('Invalid email or password');
+    recordLoginAttempt(usernameOrEmail, false);
+    throw new Error('Invalid username/email or password');
   }
   
   // In production: use bcrypt.compare(password, user.passwordHash)
   if (user.password !== password) {
-    recordLoginAttempt(email, false);
-    throw new Error('Invalid email or password');
+    recordLoginAttempt(usernameOrEmail, false);
+    throw new Error('Invalid username/email or password');
   }
   
   if (!user.isActive) {
-    recordLoginAttempt(email, false);
+    recordLoginAttempt(usernameOrEmail, false);
     throw new Error('Your account has been deactivated. Please contact admin.');
   }
   
@@ -197,7 +262,7 @@ export const login = (email, password) => {
   localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token);
   
   // Clear failed attempts
-  recordLoginAttempt(email, true);
+  recordLoginAttempt(usernameOrEmail, true);
   
   return {
     user: userWithoutPassword,
@@ -354,13 +419,14 @@ export const uploadSignature = (file) => {
  * Initialize default users and technicians
  */
 export const initializeAuthData = () => {
-  // Create default admin if no users exist
+  // Create REAL users for HEALit Med Lab if no users exist
   if (getUsers().length === 0) {
-    const adminUser = {
-      userId: 'USER_ADMIN_1',
-      email: 'admin@thyrocare.com',
-      password: 'admin123',
-      fullName: 'Admin User',
+    const aswinAdmin = {
+      userId: 'USER_ADMIN_ASWIN',
+      username: 'aswin',
+      email: 'aswin@healitlab.com',
+      password: 'aswin@healit2024',
+      fullName: 'Aswin',
       phone: '7356865161',
       role: 'admin',
       isActive: true,
@@ -368,11 +434,12 @@ export const initializeAuthData = () => {
       updatedAt: new Date().toISOString()
     };
     
-    const staffUser = {
-      userId: 'USER_STAFF_1',
-      email: 'staff@thyrocare.com',
-      password: 'staff123',
-      fullName: 'Staff User',
+    const rakhiStaff = {
+      userId: 'USER_STAFF_RAKHI',
+      username: 'rakhi',
+      email: 'rakhi@healitlab.com',
+      password: 'rakhi@healit2024',
+      fullName: 'Rakhi',
       phone: '9876543210',
       role: 'staff',
       isActive: true,
@@ -380,15 +447,28 @@ export const initializeAuthData = () => {
       updatedAt: new Date().toISOString()
     };
     
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify([adminUser, staffUser]));
+    const aparnaStaff = {
+      userId: 'USER_STAFF_APARNA',
+      username: 'aparna',
+      email: 'aparna@healitlab.com',
+      password: 'aparna@healit2024',
+      fullName: 'Aparna',
+      phone: '9123456789',
+      role: 'staff',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify([aswinAdmin, rakhiStaff, aparnaStaff]));
   }
   
-  // Create default technician if none exist
+  // Create default technicians if none exist
   if (getTechnicians().length === 0) {
-    const defaultTech = {
-      technicianId: 'TECH_DEFAULT_1',
-      userId: 'USER_STAFF_1',
-      name: 'Staff User',
+    const rakhiTech = {
+      technicianId: 'TECH_RAKHI',
+      userId: 'USER_STAFF_RAKHI',
+      name: 'Rakhi',
       qualification: 'Lab Technician',
       signatureUrl: null,
       isActive: true,
@@ -396,7 +476,18 @@ export const initializeAuthData = () => {
       updatedAt: new Date().toISOString()
     };
     
-    localStorage.setItem(STORAGE_KEYS.TECHNICIANS, JSON.stringify([defaultTech]));
+    const aparnaTech = {
+      technicianId: 'TECH_APARNA',
+      userId: 'USER_STAFF_APARNA',
+      name: 'Aparna',
+      qualification: 'Lab Technician',
+      signatureUrl: null,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    localStorage.setItem(STORAGE_KEYS.TECHNICIANS, JSON.stringify([rakhiTech, aparnaTech]));
   }
 };
 
@@ -405,11 +496,14 @@ export default {
   getUsers,
   getUserById,
   getUserByEmail,
+  getUserByUsername,
   createUser,
   addUser,
   updateUser,
   deactivateUser,
   deleteUser,
+  changePassword,
+  adminResetPassword,
   login,
   logout,
   getCurrentUser,

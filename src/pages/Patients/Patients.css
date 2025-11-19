@@ -197,6 +197,62 @@
   color: var(--text-lighter);
 }
 
+/* Date Range Filters */
+.date-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: #F8FAFC;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.date-input-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.date-input-group label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.date-input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: white;
+  transition: var(--transition);
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.clear-dates-btn {
+  padding: var(--space-2) var(--space-3);
+  background: #DC2626;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.clear-dates-btn:hover {
+  background: #991B1B;
+  transform: translateY(-1px);
+}
+
 .status-legend {
   display: flex;
   flex-wrap: wrap;
@@ -210,6 +266,30 @@
   border-radius: var(--radius-full);
   border: none;
   background: #F8FAFC;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.status-pill.active {
+  background: #000000;
+  color: #FFFFFF;
+  transform: scale(1.05);
+}
+
+.status-pill.active.payment-paid {
+  background: #059669;
+}
+
+.status-pill.active.payment-unpaid {
+  background: #DC2626;
 }
 
 .empty-state {
@@ -255,18 +335,20 @@
 
 .patients-table th,
 .patients-table td {
-  padding: var(--space-4);
+  padding: var(--space-2) var(--space-3);
   text-align: left;
+  font-size: 0.8125rem;
 }
 
 .patients-table th {
   background: #F8FAFC;
   font-weight: 600;
   color: var(--text);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   border-bottom: none;
+  padding: var(--space-2) var(--space-3);
 }
 
 .patients-table th svg {
@@ -301,8 +383,8 @@
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-full);
   background: var(--primary);
   color: white;
@@ -310,7 +392,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
 .phone-cell {
@@ -335,9 +417,9 @@
 .status-badge {
   display: inline-flex;
   align-items: center;
-  padding: var(--space-1) var(--space-3);
+  padding: 2px 8px;
   border-radius: var(--radius-full);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -368,6 +450,150 @@
 
 .text-center {
   text-align: center;
+}
+
+.icon-btn {
+  background: #F5F5F5;
+  border: 1px solid #E5E5E5;
+  border-radius: 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.icon-btn:hover {
+  background: #000000;
+  color: #FFFFFF;
+  border-color: #000000;
+  transform: scale(1.1);
+}
+
+.status-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-icon.success {
+  color: #059669;
+}
+
+.payment-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.payment-badge.paid {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.payment-badge.unpaid {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+/* Step Badges */
+.step-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.step-badge.step-registered {
+  background: #E0E7FF;
+  color: #3730A3;
+}
+
+.step-badge.step-waiting {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.step-badge.step-pending {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.step-badge.step-completed {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.step-badge.step-unknown {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+/* Icon Action Buttons */
+.icon-btn-edit,
+.icon-btn-view,
+.icon-btn-delete {
+  background: #F5F5F5;
+  border: 1px solid #E5E5E5;
+  border-radius: 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn-edit:hover {
+  background: #2563EB;
+  color: #FFFFFF;
+  border-color: #2563EB;
+  transform: scale(1.1);
+}
+
+.icon-btn-view:hover {
+  background: #059669;
+  color: #FFFFFF;
+  border-color: #059669;
+  transform: scale(1.1);
+}
+
+.icon-btn-delete {
+  background: #FEE2E2;
+  border-color: #DC2626;
+  color: #DC2626;
+}
+
+.icon-btn-delete:hover {
+  background: #DC2626;
+  color: #FFFFFF;
+  border-color: #DC2626;
+  transform: scale(1.1);
+}
+
+.icon-btn-success {
+  background: #D1FAE5;
+  border: 1px solid #059669;
+  color: #059669;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.icon-btn-success:hover {
+  background: #059669;
+  color: #FFFFFF;
+  border-color: #059669;
+  transform: scale(1.05);
 }
 
 /* Responsive */

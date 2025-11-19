@@ -166,13 +166,21 @@ const SampleTimePage = () => {
     setSaveStatus('saving');
     
     try {
-      updateVisit(visitId, {
+      // CRITICAL: Auto-save must also update status when both times are set
+      const updates = {
         collectedAt: new Date(collectedAt).toISOString(),
         receivedAt: new Date(receivedAt).toISOString(),
         sampleType,
         collectedBy,
         notes
-      });
+      };
+      
+      // If both times are valid, update status too
+      if (collectedAt && receivedAt) {
+        updates.status = 'sample_times_set';
+      }
+      
+      updateVisit(visitId, updates);
       
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus(''), 2000);
@@ -275,16 +283,17 @@ const SampleTimePage = () => {
     setIsSubmitting(true);
 
     try {
-      // Save times to visit
+      // CRITICAL FIX: Save times AND update status to sample_times_set
       updateVisit(visitId, {
         collectedAt: new Date(collectedAt).toISOString(),
         receivedAt: new Date(receivedAt).toISOString(),
         sampleType,
         collectedBy,
-        notes
+        notes,
+        status: 'sample_times_set' // THIS WAS MISSING!
       });
 
-      toast.success('Times saved successfully!');
+      toast.success('✅ Sample times saved successfully!');
       // Navigate to Result Entry page
       navigate(`/results/${visitId}`);
     } catch (error) {

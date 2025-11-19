@@ -267,6 +267,32 @@
 }
 
 /* Signature Upload */
+.signature-section {
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 2px solid #F1F5F9;
+}
+
+.signature-section h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #000000;
+  margin: 0 0 var(--space-2) 0;
+}
+
+.signature-uploads-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 768px) {
+  .signature-uploads-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .signature-upload-area {
   margin-top: var(--space-2);
 }

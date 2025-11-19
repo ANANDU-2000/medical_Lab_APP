@@ -21,6 +21,8 @@ import FinancialManagement from './features/admin/financial-management/Financial
 import AdminSettings from './features/admin/settings/AdminSettings';
 import TechniciansPage from './pages/Settings/TechniciansPage';
 import ProfileManager from './pages/Admin/ProfileManager';
+import StaffSettings from './pages/Settings/StaffSettings';
+import StaffPerformance from './pages/Admin/StaffPerformance';
 
 import Layout from './components/Layout/Layout';
 
@@ -128,12 +130,25 @@ function App() {
             }
           />
           <Route
+            path="staff-performance"
+            element={
+              <ProtectedRoute adminOnly>
+                <StaffPerformance />
+              </ProtectedRoute>
+            }
+          />
+          {/* Settings Routes */}
+          <Route
             path="settings"
             element={
               <ProtectedRoute adminOnly>
                 <AdminSettings />
               </ProtectedRoute>
             }
+          />
+          <Route
+            path="settings/staff"
+            element={<StaffSettings />}
           />
           <Route
             path="settings/technicians"
@@ -143,14 +158,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* Profile Manager Page */}
+          {/* Profile Manager Page - Admin AND Staff - FIXED PATH */}
+          <Route
+            path="profiles"
+            element={<ProfileManager />}
+          />
           <Route
             path="admin/profile-manager"
-            element={
-              <ProtectedRoute adminOnly>
-                <ProfileManager />
-              </ProtectedRoute>
-            }
+            element={<ProfileManager />}
           />
         </Route>
         

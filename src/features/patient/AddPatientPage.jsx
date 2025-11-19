@@ -213,7 +213,7 @@ const AddPatientPage = () => {
         subtotal,
         discount: discountAmount,
         finalAmount,
-        status: 'registered',
+        // REMOVED: status - createVisit() sets this automatically to 'tests_selected'
         addedBy: currentUser.userId,
         addedByRole: role
       };

@@ -1,5 +1,5 @@
 // Financial Management Service - LocalStorage Simulation
-import { getPatients } from '../../shared/dataService';
+import { getPatients, getVisits } from '../../shared/dataService';
 
 const STORAGE_KEYS = {
   EXPENSES: 'lab_expenses',
@@ -165,7 +165,7 @@ export const deleteReminder = (id) => {
 
 export const getFinancialSummary = (range = 'month') => {
   const expenses = getExpenses();
-  const patients = getPatients();
+  const allVisits = getVisits(); // Get visits separately
   const now = new Date();
   
   // Calculate date range
@@ -196,28 +196,24 @@ export const getFinancialSummary = (range = 'month') => {
     prevEndDate.setDate(endDate.getDate() - 1);
   }
   
-  // Calculate current period revenue
-  const currentRevenue = patients.reduce((sum, patient) => {
-    if (!patient.visits) return sum;
-    return sum + patient.visits.reduce((vSum, visit) => {
-      const visitDate = new Date(visit.createdAt);
-      if (visitDate >= startDate && visitDate <= endDate) {
-        return vSum + (visit.finalAmount || 0);
-      }
-      return vSum;
-    }, 0);
+  // Calculate current period revenue - ONLY COUNT PAID VISITS
+  const currentRevenue = allVisits.reduce((sum, visit) => {
+    const visitDate = new Date(visit.createdAt);
+    const isPaid = visit.paymentStatus === 'paid';
+    if (visitDate >= startDate && visitDate <= endDate && isPaid) {
+      return sum + (visit.finalAmount || visit.totalAmount || 0);
+    }
+    return sum;
   }, 0);
   
-  // Calculate previous period revenue
-  const prevRevenue = patients.reduce((sum, patient) => {
-    if (!patient.visits) return sum;
-    return sum + patient.visits.reduce((vSum, visit) => {
-      const visitDate = new Date(visit.createdAt);
-      if (visitDate >= prevStartDate && visitDate <= prevEndDate) {
-        return vSum + (visit.finalAmount || 0);
-      }
-      return vSum;
-    }, 0);
+  // Calculate previous period revenue - ONLY COUNT PAID VISITS
+  const prevRevenue = allVisits.reduce((sum, visit) => {
+    const visitDate = new Date(visit.createdAt);
+    const isPaid = visit.paymentStatus === 'paid';
+    if (visitDate >= prevStartDate && visitDate <= prevEndDate && isPaid) {
+      return sum + (visit.finalAmount || visit.totalAmount || 0);
+    }
+    return sum;
   }, 0);
   
   // Calculate current period expenses
@@ -284,7 +280,7 @@ export const getFinancialSummary = (range = 'month') => {
 
 export const getAnalyticsData = (range = 'month', customStart = null, customEnd = null) => {
   const expenses = getExpenses();
-  const patients = getPatients();
+  const allVisits = getVisits(); // Get visits separately
   
   // Generate date range
   let dataPoints = [];
@@ -340,16 +336,14 @@ export const getAnalyticsData = (range = 'month', customStart = null, customEnd 
       periodEnd = new Date(pointDate.getFullYear(), pointDate.getMonth() + 1, 0);
     }
     
-    // Calculate revenue
-    const revenue = patients.reduce((sum, patient) => {
-      if (!patient.visits) return sum;
-      return sum + patient.visits.reduce((vSum, visit) => {
-        const visitDate = new Date(visit.createdAt);
-        if (visitDate >= periodStart && visitDate <= periodEnd) {
-          return vSum + (visit.finalAmount || 0);
-        }
-        return vSum;
-      }, 0);
+    // Calculate revenue - ONLY COUNT PAID VISITS
+    const revenue = allVisits.reduce((sum, visit) => {
+      const visitDate = new Date(visit.createdAt);
+      const isPaid = visit.paymentStatus === 'paid';
+      if (visitDate >= periodStart && visitDate <= periodEnd && isPaid) {
+        return sum + (visit.finalAmount || visit.totalAmount || 0);
+      }
+      return sum;
     }, 0);
     
     // Calculate expenses

@@ -28,21 +28,21 @@ export const generateReportPDF = (visitData) => {
   let yPos = margin;
 
   // ========================================
-  // HEADER SECTION WITH LOGOS - FIXED POSITIONING
+  // HEADER SECTION - CENTER ALIGNED
   // ========================================
   
   // Header border top
   doc.setDrawColor(COLORS.border);
   doc.setLineWidth(0.5);
   doc.line(margin, yPos, pageWidth - margin, yPos);
-  yPos += 5;
+  yPos += 8;
 
-  // Add logos - BIGGER SIZE, NO OVERLAP
-  const logoHeight = 28;
+  // Add logos at top
+  const logoHeight = 22;
   const logoWidth = logoHeight * 1.6;
   const logoY = yPos;
   
-  // Left Logo - HEALit (TOP LEFT)
+  // Left Logo - HEALit
   try {
     const healitLogo = '/images/@heal original editable file (png).png';
     doc.addImage(healitLogo, 'PNG', margin, logoY, logoWidth, logoHeight);
@@ -50,7 +50,7 @@ export const generateReportPDF = (visitData) => {
     console.log('HEALit logo not loaded');
   }
   
-  // Right Logo - Partner (TOP RIGHT)
+  // Right Logo - Partner
   try {
     const partnerLogo = '/images/download.jpeg.jpg';
     doc.addImage(partnerLogo, 'JPEG', pageWidth - margin - logoWidth, logoY, logoWidth, logoHeight);
@@ -58,32 +58,32 @@ export const generateReportPDF = (visitData) => {
     console.log('Partner logo not loaded');
   }
 
-  // Center Title - NO OVERLAP, positioned between logos
-  const centerY = logoY + logoHeight / 2;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(COLORS.primary);
-  doc.text('HEALit Med Laboratories', pageWidth / 2, centerY, { align: 'center' });
-  
-  yPos += logoHeight + 2;
+  yPos += logoHeight + 5;
 
-  // Subtitle - Address & Contact
+  // Center Header - Lab Name
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(COLORS.primary);
+  doc.text('HEALit Med Laboratories', pageWidth / 2, yPos, { align: 'center' });
+  yPos += 6;
+  
+  // Center Address
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setTextColor(COLORS.text);
   doc.text('Kunnathpeedika – Thrissur, Kerala', pageWidth / 2, yPos, { align: 'center' });
-  yPos += 4; // Reduced from 5
+  yPos += 5;
   
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor('#6B7280');
   doc.text('Phone: 7356865161 | Email: healitlab@gmail.com', pageWidth / 2, yPos, { align: 'center' });
-  yPos += 5; // Reduced from 6
+  yPos += 6;
 
   // Bottom border
   doc.setDrawColor(COLORS.border);
   doc.setLineWidth(0.5);
   doc.line(margin, yPos, pageWidth - margin, yPos);
-  yPos += 8; // Reduced from 10
+  yPos += 8;
 
   // ========================================
   // PATIENT DETAILS BLOCK
@@ -225,62 +225,80 @@ export const generateReportPDF = (visitData) => {
   });
 
   // ========================================
-  // FOOTER - SIGNATURE SECTION
+  // FOOTER - SIGNATURE SECTION (NO NAMES/QUALIFICATIONS)
   // ========================================
   
-  yPos = pageHeight - 45; // More space for signature images
+  yPos = pageHeight - 40;
   
-  doc.setFont('helvetica', 'normal');
+  // Signature Section Border
+  doc.setDrawColor(COLORS.border);
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPos - 5, pageWidth - margin, yPos - 5);
+  
+  // LEFT SIGNATURE - Lab Technician
+  const leftSigX = margin + 15;
+  const sigHeight = 18;
+  
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(COLORS.text);
+  doc.text('Lab Technician', leftSigX, yPos);
   
-  // LEFT SIGNATURE - Lab Technician with IMAGE
-  const leftSigX = margin + 10;
-  doc.text('Lab Technician:', leftSigX, yPos);
-  
-  // Add technician signature image if available
+  // Add technician signature image
   try {
-    const technicianSignature = '/images/signatures/rakhi-signature.png'; // Lab Technician signature PNG
-    doc.addImage(technicianSignature, 'PNG', leftSigX, yPos + 2, 35, 15);
+    const technicianSignature = '/images/signatures/rakhi-signature.png';
+    doc.addImage(technicianSignature, 'PNG', leftSigX, yPos + 2, 35, sigHeight);
   } catch (error) {
-    // Fallback to JPG if PNG not found
     try {
       const technicianSignature = '/images/RakiSign.jpg';
-      doc.addImage(technicianSignature, 'JPEG', leftSigX, yPos + 2, 35, 15);
+      doc.addImage(technicianSignature, 'JPEG', leftSigX, yPos + 2, 35, sigHeight);
     } catch (err) {
-      doc.line(leftSigX, yPos + 8, leftSigX + 45, yPos + 8);
+      doc.line(leftSigX, yPos + 10, leftSigX + 35, yPos + 10);
     }
   }
   
+  // Technician Name and Qualification
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(COLORS.text);
+  doc.text('Rakhi T.R', leftSigX, yPos + sigHeight + 6);
+  
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text('Name: ' + (visitData.signingTechnician?.fullName || 'Rakhi T.R'), leftSigX, yPos + 20);
-  doc.text('Qualification: DMLT', leftSigX, yPos + 24);
+  doc.setTextColor('#6B7280');
+  doc.text('DMLT', leftSigX, yPos + sigHeight + 10);
   
-  // RIGHT SIGNATURE - Lab In-Charge with IMAGE
-  const rightSigX = pageWidth - margin - 60;
-  doc.setFont('helvetica', 'normal');
+  // RIGHT SIGNATURE - Authorized Signatory (In-charge)
+  const rightSigX = pageWidth - margin - 50;
+  
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text('Authorized Signatory:', rightSigX, yPos);
+  doc.setTextColor(COLORS.text);
+  doc.text('Authorized Signatory', rightSigX, yPos);
   
-  // Add lab in-charge signature image
+  // Add in-charge signature image
   try {
-    const inchargeSignature = '/images/signatures/aparna-signature.png'; // Lab In-Charge signature PNG
-    doc.addImage(inchargeSignature, 'PNG', rightSigX, yPos + 2, 35, 15);
+    const inchargeSignature = '/images/signatures/aparna-signature.png';
+    doc.addImage(inchargeSignature, 'PNG', rightSigX, yPos + 2, 35, sigHeight);
   } catch (error) {
-    // Fallback to JPG if PNG not found
     try {
       const inchargeSignature = '/images/signatures/aparna-signature.jpg';
-      doc.addImage(inchargeSignature, 'JPEG', rightSigX, yPos + 2, 35, 15);
+      doc.addImage(inchargeSignature, 'JPEG', rightSigX, yPos + 2, 35, sigHeight);
     } catch (err) {
-      doc.line(rightSigX, yPos + 8, rightSigX + 50, yPos + 8);
+      doc.line(rightSigX, yPos + 10, rightSigX + 35, yPos + 10);
     }
   }
   
+  // In-charge Name and Title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(COLORS.text);
+  doc.text('Aparna A.T', rightSigX, yPos + sigHeight + 6);
+  
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text('Name: Aparna A.T', rightSigX, yPos + 20);
-  doc.text('Lab In-Charge', rightSigX, yPos + 24);
+  doc.setTextColor('#6B7280');
+  doc.text('Incharge', rightSigX, yPos + sigHeight + 10);
 
   return doc;
 };

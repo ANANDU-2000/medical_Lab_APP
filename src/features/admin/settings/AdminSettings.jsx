@@ -6,8 +6,9 @@ import {
   Trash2, Upload, Download, Eye, EyeOff, Save, Check
 } from 'lucide-react';
 import { useAuthStore } from '../../../store';
-import { getCurrentUser, getUsers, addUser, updateUser, deleteUser } from '../../../services/authService';
+import { getCurrentUser, getUsers, addUser, updateUser, deleteUser, adminResetPassword } from '../../../services/authService';
 import { getSettings, updateSettings } from '../../../services/settingsService';
+import { clearAllData } from '../../shared/dataService';
 import Button from '../../../components/ui/Button';
 import toast from 'react-hot-toast';
 import './AdminSettings.css';
@@ -23,9 +24,11 @@ const AdminSettings = () => {
   const [settings, setSettings] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
   
   // Staff form
   const [staffForm, setStaffForm] = useState({
+    username: '',
     fullName: '',
     email: '',
     phone: '',
@@ -60,8 +63,8 @@ const AdminSettings = () => {
   
   // Staff Management Handlers
   const handleAddStaff = () => {
-    if (!staffForm.fullName || !staffForm.email || !staffForm.password) {
-      toast.error('Name, email, and password are required');
+    if (!staffForm.username || !staffForm.fullName || !staffForm.email || !staffForm.password) {
+      toast.error('Username, name, email, and password are required');
       return;
     }
     
@@ -97,11 +100,31 @@ const AdminSettings = () => {
   
   const handleResetPassword = (user) => {
     setSelectedUser(user);
+    setNewPassword('');
     setShowPasswordModal(true);
+  };
+  
+  const handleSaveNewPassword = () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    
+    try {
+      adminResetPassword(selectedUser.userId, newPassword);
+      toast.success(`Password reset successfully for ${selectedUser.fullName}`);
+      setShowPasswordModal(false);
+      setSelectedUser(null);
+      setNewPassword('');
+      loadData();
+    } catch (error) {
+      toast.error('Failed to reset password: ' + error.message);
+    }
   };
   
   const resetStaffForm = () => {
     setStaffForm({
+      username: '',
       fullName: '',
       email: '',
       phone: '',
@@ -130,6 +153,59 @@ const AdminSettings = () => {
   // Export handlers
   const handleExport = (type) => {
     toast.success(`Exporting ${type}... (Feature coming soon)`);
+  };
+  
+  // Clear all data handler
+  const handleClearAllData = () => {
+    const confirmed = window.confirm(
+      '⚠️ WARNING: CLEAR ALL DATA\n\n' +
+      'This will PERMANENTLY DELETE:\n' +
+      '• All patient records\n' +
+      '• All visit history\n' +
+      '• All test results\n' +
+      '• All invoices\n' +
+      '• All financial data (expenses, categories, reminders)\n' +
+      '• All audit logs\n\n' +
+      'Lab profiles and settings will be reset to defaults.\n\n' +
+      'Are you ABSOLUTELY SURE you want to continue?'
+    );
+    
+    if (!confirmed) return;
+    
+    // Second confirmation
+    const doubleConfirmed = window.confirm(
+      '⚠️ FINAL CONFIRMATION\n\n' +
+      'This action CANNOT be undone!\n\n' +
+      'Type your admin password in the next prompt to confirm.'
+    );
+    
+    if (!doubleConfirmed) return;
+    
+    // Ask for password
+    const password = window.prompt('Enter your admin password to confirm:');
+    
+    if (!password) {
+      toast.error('Data clear cancelled');
+      return;
+    }
+    
+    // Verify password (simple check)
+    if (currentUser && currentUser.password !== password) {
+      toast.error('Incorrect password. Operation cancelled.');
+      return;
+    }
+    
+    try {
+      clearAllData();
+      toast.success('✅ All data cleared successfully! Starting fresh...');
+      
+      // Reload page after 2 seconds
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (error) {
+      toast.error('Failed to clear data: ' + error.message);
+    }
   };
   
   if (!settings) {
@@ -235,6 +311,15 @@ const AdminSettings = () => {
                 <h3>Add New Staff</h3>
                 <div className="form-grid">
                   <div className="form-group">
+                    <label>Username *</label>
+                    <input
+                      type="text"
+                      value={staffForm.username}
+                      onChange={(e) => setStaffForm({ ...staffForm, username: e.target.value })}
+                      placeholder="Unique username (lowercase)"
+                    />
+                  </div>
+                  <div className="form-group">
                     <label>Full Name *</label>
                     <input
                       type="text"
@@ -304,6 +389,7 @@ const AdminSettings = () => {
                   <table className="settings-table">
                     <thead>
                       <tr>
+                        <th>Username</th>
                         <th>Name</th>
                         <th>Email</th>
                         <th>Phone</th>
@@ -315,6 +401,7 @@ const AdminSettings = () => {
                     <tbody>
                       {users.map(user => (
                         <tr key={user.userId}>
+                          <td><strong>{user.username || '-'}</strong></td>
                           <td>{user.fullName}</td>
                           <td>{user.email}</td>
                           <td>{user.phone || '—'}</td>
@@ -569,7 +656,7 @@ const AdminSettings = () => {
                   Test and Profile management is available in the respective management pages.
                 </p>
                 <div className="button-grid">
-                  <Button variant="primary" onClick={() => navigate('/tests')}>
+                  <Button variant="primary" onClick={() => navigate('/profiles')}>
                     Manage Tests
                   </Button>
                   <Button variant="primary" onClick={() => navigate('/profiles')}>
@@ -681,7 +768,7 @@ const AdminSettings = () => {
                   <AlertCircle size={18} />
                   Manage reminders in the Financial Management section.
                 </p>
-                <Button variant="primary" onClick={() => navigate('/admin/finance')}>
+                <Button variant="primary" onClick={() => navigate('/financial')}>
                   Go to Financial Management
                 </Button>
               </div>
@@ -730,6 +817,25 @@ const AdminSettings = () => {
                     <small>Complete system backup (ZIP)</small>
                   </button>
                 </div>
+              </div>
+              
+              <div className="card-settings">
+                <h3 style={{color: '#DC2626'}}>Danger Zone</h3>
+                <div className="alert-box-danger">
+                  <AlertCircle size={20} />
+                  <div>
+                    <strong>Clear All Data</strong>
+                    <p>Permanently delete all patient records, visits, test results, invoices, and financial data. This action cannot be undone!</p>
+                  </div>
+                </div>
+                <Button 
+                  variant="primary" 
+                  onClick={handleClearAllData}
+                  style={{background: '#DC2626', borderColor: '#DC2626'}}
+                >
+                  <Trash2 size={18} />
+                  Clear All Data & Start Fresh
+                </Button>
               </div>
             </div>
           )}
@@ -825,12 +931,23 @@ const AdminSettings = () => {
         <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>Reset Password</h3>
-            <p>User: <strong>{selectedUser.fullName}</strong></p>
-            <p className="help-text">Contact the user to provide a new password</p>
+            <p>User: <strong>{selectedUser.fullName}</strong> (@{selectedUser.username})</p>
+            <p className="help-text">Enter a new password for this user (minimum 6 characters)</p>
+            <div className="form-group">
+              <label>New Password *</label>
+              <input
+                type="text"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                autoFocus
+              />
+            </div>
             <div className="modal-actions">
-              <Button variant="outline" onClick={() => setShowPasswordModal(false)}>Close</Button>
-              <Button variant="primary" onClick={() => { toast.success('Password reset feature coming soon'); setShowPasswordModal(false); }}>
-                Send Reset Link
+              <Button variant="outline" onClick={() => setShowPasswordModal(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleSaveNewPassword}>
+                <Save size={18} />
+                Reset Password
               </Button>
             </div>
           </div>

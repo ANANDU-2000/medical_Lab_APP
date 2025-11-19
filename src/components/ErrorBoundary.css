@@ -88,14 +88,14 @@
 }
 
 .btn-reload {
-  background: #2563EB;
+  background: #000000;
   color: white;
 }
 
 .btn-reload:hover {
-  background: #1E40AF;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  background: #1a1a1a;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .btn-home {

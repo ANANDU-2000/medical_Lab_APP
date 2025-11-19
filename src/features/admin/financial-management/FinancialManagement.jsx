@@ -77,15 +77,16 @@ const FinancialManagement = () => {
   });
   
   const [analyticsRange, setAnalyticsRange] = useState('month');
+  const [summaryRange, setSummaryRange] = useState('month');
   
   // Helper functions wrapped in useCallback to avoid dependency warnings
   const loadData = useCallback(() => {
-    setSummary(getFinancialSummary('month'));
+    setSummary(getFinancialSummary(summaryRange));
     setExpenses(getExpenses());
     setCategories(getCategories());
     setReminders(getReminders());
     setStaffExpenses(getStaffExpensesSummary());
-  }, []);
+  }, [summaryRange]);
   
   const loadAnalytics = useCallback(() => {
     const data = getAnalyticsData(analyticsRange);
@@ -344,6 +345,26 @@ const FinancialManagement = () => {
           <p className="subtitle">Track expenses, revenue, and profit/loss analytics</p>
         </div>
         <div className="header-actions">
+          <div className="range-selector">
+            <button 
+              className={`range-btn ${summaryRange === 'daily' ? 'active' : ''}`}
+              onClick={() => setSummaryRange('daily')}
+            >
+              Today
+            </button>
+            <button 
+              className={`range-btn ${summaryRange === 'week' ? 'active' : ''}`}
+              onClick={() => setSummaryRange('week')}
+            >
+              This Week
+            </button>
+            <button 
+              className={`range-btn ${summaryRange === 'month' ? 'active' : ''}`}
+              onClick={() => setSummaryRange('month')}
+            >
+              This Month
+            </button>
+          </div>
           <Button variant="outline" onClick={handleExportExcel}>
             <FileSpreadsheet size={18} />
             Export Excel
@@ -365,7 +386,7 @@ const FinancialManagement = () => {
           <div className="card-value">₹{summary.revenue.current.toLocaleString()}</div>
           <div className={`card-trend ${summary.revenue.trend >= 0 ? 'positive' : 'negative'}`}>
             {summary.revenue.trend >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-            <span>{Math.abs(summary.revenue.trend).toFixed(1)}% vs last month</span>
+            <span>{Math.abs(summary.revenue.trend).toFixed(1)}% vs {summaryRange === 'daily' ? 'yesterday' : summaryRange === 'week' ? 'last week' : 'last month'}</span>
           </div>
         </div>
 
@@ -377,7 +398,7 @@ const FinancialManagement = () => {
           <div className="card-value">₹{summary.expenses.current.toLocaleString()}</div>
           <div className={`card-trend ${summary.expenses.trend <= 0 ? 'positive' : 'negative'}`}>
             {summary.expenses.trend <= 0 ? <TrendingDown size={16} /> : <TrendingUp size={16} />}
-            <span>{Math.abs(summary.expenses.trend).toFixed(1)}% vs last month</span>
+            <span>{Math.abs(summary.expenses.trend).toFixed(1)}% vs {summaryRange === 'daily' ? 'yesterday' : summaryRange === 'week' ? 'last week' : 'last month'}</span>
           </div>
         </div>
 
@@ -389,7 +410,7 @@ const FinancialManagement = () => {
           <div className="card-value">₹{summary.profit.current.toLocaleString()}</div>
           <div className={`card-trend ${summary.profit.trend >= 0 ? 'positive' : 'negative'}`}>
             {summary.profit.trend >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-            <span>{Math.abs(summary.profit.trend).toFixed(1)}% vs last month</span>
+            <span>{Math.abs(summary.profit.trend).toFixed(1)}% vs {summaryRange === 'daily' ? 'yesterday' : summaryRange === 'week' ? 'last week' : 'last month'}</span>
           </div>
         </div>
 

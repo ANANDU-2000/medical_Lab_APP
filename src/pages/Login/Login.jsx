@@ -10,7 +10,7 @@ const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
   const [formData, setFormData] = useState({
-    email: '',
+    usernameOrEmail: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -22,8 +22,8 @@ const Login = () => {
     
     // Validation
     const newErrors = {};
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
+    if (!formData.usernameOrEmail) {
+      newErrors.usernameOrEmail = 'Username or Email is required';
     }
     if (!formData.password) {
       newErrors.password = 'Password is required';
@@ -38,7 +38,7 @@ const Login = () => {
     setErrors({});
     
     try {
-      const result = await login(formData.email, formData.password);
+      const result = await login(formData.usernameOrEmail, formData.password);
       
       if (result.success) {
         toast.success(`Welcome back, ${result.user.fullName}!`);
@@ -58,99 +58,99 @@ const Login = () => {
 
   return (
     <div className="login-page">
-      <div className="login-container">
-        <div className="login-card">
-          {/* Dual Logo Header */}
-          <div className="login-header">
-            <div className="logo-section">
-              <div className="logo-item">
-                <div className="logo-circle">🧬</div>
-                <span className="logo-text">HEALit</span>
+      <div className="login-split-container">
+        {/* Left Side - Medical Lab Image & Branding */}
+        <div className="login-left">
+          <div className="branding-content">
+            <div className="brand-title">
+              <h1 className="brand-main">HEALit</h1>
+              <span className="brand-sub">Med Lab</span>
+            </div>
+            <p className="tagline">Advanced Laboratory Management System</p>
+            <div className="features">
+              <div className="feature-item">
+                <span className="feature-check">✓</span>
+                <span>Digital Patient Records</span>
               </div>
-              <div className="logo-divider">+</div>
-              <div className="logo-item">
-                <div className="logo-circle">🔬</div>
-                <span className="logo-text">Thyrocare</span>
+              <div className="feature-item">
+                <span className="feature-check">✓</span>
+                <span>Real-time Results</span>
+              </div>
+              <div className="feature-item">
+                <span className="feature-check">✓</span>
+                <span>Automated Reporting</span>
               </div>
             </div>
-            <h1>Laboratory Management System</h1>
-            <p className="subtitle">Kunnathpeedika Centre - Thrissur</p>
           </div>
+          <div className="branding-footer">
+            <p>Kunnathpeedika Centre, Thrissur</p>
+            <p>© 2024 HEALit Med Lab. All rights reserved.</p>
+          </div>
+        </div>
 
-          <form className="login-form" onSubmit={handleSubmit}>
-            {errors.general && (
-              <div className="error-banner">
-                {errors.general}
-              </div>
-            )}
-
-            <div className="form-group">
-              <label>Email Address *</label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => {
-                  setFormData({...formData, email: e.target.value});
-                  setErrors({...errors, email: ''});
-                }}
-                placeholder="Enter your email"
-                className={errors.email ? 'error' : ''}
-                disabled={loading}
-                autoComplete="email"
-              />
-              {errors.email && <span className="error-text">{errors.email}</span>}
+        {/* Right Side - Login Form */}
+        <div className="login-right">
+          <div className="login-form-container">
+            <div className="form-header">
+              <h2>Welcome Back</h2>
+              <p>Sign in to your account</p>
             </div>
 
-            <div className="form-group">
-              <label>Password *</label>
-              <div className="password-input-wrapper">
+            <form className="login-form" onSubmit={handleSubmit}>
+              {errors.general && (
+                <div className="error-banner">
+                  {errors.general}
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Username or Email</label>
                 <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
+                  type="text"
+                  value={formData.usernameOrEmail}
                   onChange={(e) => {
-                    setFormData({...formData, password: e.target.value});
-                    setErrors({...errors, password: ''});
+                    setFormData({...formData, usernameOrEmail: e.target.value});
+                    setErrors({...errors, usernameOrEmail: ''});
                   }}
-                  placeholder="Enter your password"
-                  className={errors.password ? 'error' : ''}
+                  placeholder="Enter username or email"
+                  className={errors.usernameOrEmail ? 'error' : ''}
                   disabled={loading}
-                  autoComplete="current-password"
+                  autoComplete="username"
                 />
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                  tabIndex="-1"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+                {errors.usernameOrEmail && <span className="error-text">{errors.usernameOrEmail}</span>}
               </div>
-              {errors.password && <span className="error-text">{errors.password}</span>}
-            </div>
 
-            <Button type="submit" fullWidth icon={LogIn} disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
-            </Button>
-
-            <div className="forgot-password">
-              <button type="button" className="forgot-link" disabled>
-                Forgot Password?
-              </button>
-            </div>
-          </form>
-
-          <div className="demo-credentials">
-            <p className="demo-title"><strong>Demo Credentials:</strong></p>
-            <div className="demo-list">
-              <div className="demo-item">
-                <span className="role-badge admin">Admin</span>
-                <span>admin@healit.com / admin123</span>
+              <div className="form-group">
+                <label>Password</label>
+                <div className="password-input-wrapper">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => {
+                      setFormData({...formData, password: e.target.value});
+                      setErrors({...errors, password: ''});
+                    }}
+                    placeholder="Enter password"
+                    className={errors.password ? 'error' : ''}
+                    disabled={loading}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex="-1"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {errors.password && <span className="error-text">{errors.password}</span>}
               </div>
-              <div className="demo-item">
-                <span className="role-badge staff">Staff</span>
-                <span>staff@healit.com / staff123</span>
-              </div>
-            </div>
+
+              <Button type="submit" fullWidth icon={LogIn} disabled={loading}>
+                {loading ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </form>
           </div>
         </div>
       </div>

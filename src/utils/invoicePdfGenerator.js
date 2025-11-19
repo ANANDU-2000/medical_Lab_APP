@@ -137,81 +137,140 @@ export const generateInvoicePDF = (invoiceData) => {
   yPos += 10;
 
   // ========== ITEMS TABLE ==========
-  const tableData = items.map((item, index) => [
-    index + 1,
-    item.name || '-',
-    `₹${item.price || 0}`,
-    item.qty || 1,
-    `₹${(item.price || 0) * (item.qty || 1)}`
-  ]);
+  const tableData = items.map((item, index) => {
+    // Ensure numbers are properly parsed
+    const price = parseFloat(item.price) || 0;
+    const qty = parseInt(item.qty) || 1;
+    const amount = price * qty;
+    
+    return [
+      String(index + 1),
+      String(item.name || '-'),
+      'Rs. ' + price.toFixed(2),
+      String(qty),
+      'Rs. ' + amount.toFixed(2)
+    ];
+  });
 
   doc.autoTable({
     startY: yPos,
-    head: [['Sl.', 'Test / Package Name', 'Unit Price', 'Qty', 'Total']],
+    head: [['#', 'Test / Package Description', 'Rate', 'Qty', 'Amount']],
     body: tableData,
     theme: 'grid',
     headStyles: {
-      fillColor: [30, 58, 138], // Dark blue
+      fillColor: [30, 58, 138],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 10
+      fontSize: 10,
+      halign: 'center',
+      valign: 'middle'
     },
     bodyStyles: {
-      fontSize: 9,
-      textColor: [0, 0, 0]
+      fontSize: 10,
+      textColor: [0, 0, 0],
+      cellPadding: 4
     },
     alternateRowStyles: {
-      fillColor: [243, 244, 246] // Light grey
+      fillColor: [249, 250, 251]
     },
     columnStyles: {
-      0: { cellWidth: 15, halign: 'center' },
-      1: { cellWidth: 85 },
-      2: { cellWidth: 30, halign: 'right' },
-      3: { cellWidth: 15, halign: 'center' },
-      4: { cellWidth: 30, halign: 'right' }
+      0: { cellWidth: 15, halign: 'center', valign: 'middle' },
+      1: { cellWidth: 85, halign: 'left', valign: 'middle' },
+      2: { cellWidth: 30, halign: 'right', valign: 'middle' },
+      3: { cellWidth: 15, halign: 'center', valign: 'middle' },
+      4: { cellWidth: 35, halign: 'right', valign: 'middle', fontStyle: 'bold' }
     },
-    margin: { left: 15, right: 15 }
+    margin: { left: 15, right: 15 },
+    didDrawPage: (data) => {
+      // Add border to table
+      doc.setDrawColor(30, 58, 138);
+      doc.setLineWidth(0.5);
+    }
   });
 
-  yPos = doc.lastAutoTable.finalY + 10;
-
-  // ========== SUMMARY ==========
-  const summaryX = pageWidth - 65;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-
-  const summaryLines = [
-    ['Subtotal:', `₹${subtotal || finalTotal + discount}`],
-    discount > 0 ? ['Discount:', `- ₹${discount}`] : null,
-    ['Tax:', '₹0'],
-    ['Net Amount:', `₹${finalTotal}`]
-  ].filter(Boolean);
-
-  summaryLines.forEach(([label, value], index) => {
-    doc.text(label, summaryX, yPos);
-    doc.setFont('helvetica', 'bold');
-    doc.text(value, pageWidth - 15, yPos, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    yPos += 6;
-  });
-
-  yPos += 2;
-  doc.setDrawColor(0, 0, 0);
+  // ========== SUMMARY SECTION ==========
+  yPos = doc.lastAutoTable.finalY + 8;
+  
+  // Calculate totals correctly - ENSURE NUMBERS
+  const calculatedSubtotal = items.reduce((sum, item) => {
+    const price = parseFloat(item.price) || 0;
+    const qty = parseInt(item.qty) || 1;
+    return sum + (price * qty);
+  }, 0);
+  const actualDiscount = parseFloat(discount) || 0;
+  const calculatedTotal = calculatedSubtotal - actualDiscount;
+  const actualPaid = parseFloat(amountPaid) || calculatedTotal;
+  const balance = calculatedTotal - actualPaid;
+  
+  // Create summary box on right side - WIDER BOX
+  const summaryX = 95;
+  const summaryWidth = pageWidth - 15 - summaryX;
+  
+  doc.setDrawColor(30, 58, 138);
   doc.setLineWidth(0.8);
-  doc.line(summaryX, yPos, pageWidth - 15, yPos);
-  yPos += 6;
-
+  doc.rect(summaryX, yPos, summaryWidth, 50);
+  
+  // Summary content
+  let summaryY = yPos + 8;
+  const labelX = summaryX + 5;
+  const valueX = pageWidth - 18;
+  
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+  
+  // Subtotal
+  doc.text('Subtotal:', labelX, summaryY);
+  doc.text('Rs. ' + calculatedSubtotal.toFixed(2), valueX, summaryY, { align: 'right' });
+  summaryY += 8;
+  
+  // Discount
+  if (actualDiscount > 0) {
+    doc.text('Discount:', labelX, summaryY);
+    doc.setTextColor(220, 38, 38);
+    doc.text('- Rs. ' + actualDiscount.toFixed(2), valueX, summaryY, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    summaryY += 8;
+  }
+  
+  // Tax/GST
+  doc.text('Tax/GST:', labelX, summaryY);
+  doc.text('Rs. 0.00', valueX, summaryY, { align: 'right' });
+  summaryY += 8;
+  
+  // Grand Total - Highlighted
+  doc.setFillColor(240, 245, 255);
+  doc.rect(summaryX + 1, summaryY - 6, summaryWidth - 2, 10, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('Amount Paid:', summaryX, yPos);
-  doc.text(`₹${amountPaid || finalTotal}`, pageWidth - 15, yPos, { align: 'right' });
-
-  yPos += 6;
-  const balance = finalTotal - (amountPaid || finalTotal);
+  doc.setFontSize(12);
+  doc.setTextColor(30, 58, 138);
+  doc.text('Grand Total:', labelX, summaryY);
+  doc.text('Rs. ' + calculatedTotal.toFixed(2), valueX, summaryY, { align: 'right' });
+  summaryY += 10;
+  
+  // Amount Paid
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Amount Paid:', labelX, summaryY);
+  doc.setTextColor(22, 163, 74);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Rs. ' + actualPaid.toFixed(2), valueX, summaryY, { align: 'right' });
+  summaryY += 8;
+  
+  // Balance Due
+  doc.setFont('helvetica', 'normal');
   if (balance > 0) {
-    doc.setTextColor(239, 68, 68); // Red
-    doc.text('Balance:', summaryX, yPos);
-    doc.text(`₹${balance}`, pageWidth - 15, yPos, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    doc.text('Balance Due:', labelX, summaryY);
+    doc.setTextColor(220, 38, 38);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Rs. ' + balance.toFixed(2), valueX, summaryY, { align: 'right' });
+  } else {
+    doc.setTextColor(0, 0, 0);
+    doc.text('Balance Due:', labelX, summaryY);
+    doc.setTextColor(22, 163, 74);
+    doc.text('Rs. 0.00', valueX, summaryY, { align: 'right' });
   }
 
   // ========== FOOTER WITH SIGNATURES ==========

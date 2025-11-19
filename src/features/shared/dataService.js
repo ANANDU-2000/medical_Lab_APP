@@ -12,6 +12,11 @@ const STORAGE_KEYS = {
   AUDIT_LOGS: 'healit_audit_logs'
 };
 
+// Event dispatcher for real-time updates
+const dispatchDataUpdate = (type) => {
+  window.dispatchEvent(new CustomEvent('healit-data-update', { detail: { type } }));
+};
+
 // Initialize seed data on first load
 export const initializeSeedData = () => {
   // Check data version - force reload if structure changed
@@ -41,6 +46,39 @@ export const initializeSeedData = () => {
     };
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(defaultSettings));
   }
+};
+
+// Clear all data and start fresh
+export const clearAllData = () => {
+  // Remove all data
+  localStorage.removeItem(STORAGE_KEYS.PATIENTS);
+  localStorage.removeItem(STORAGE_KEYS.VISITS);
+  localStorage.removeItem(STORAGE_KEYS.RESULTS);
+  localStorage.removeItem(STORAGE_KEYS.INVOICES);
+  localStorage.removeItem(STORAGE_KEYS.AUDIT_LOGS);
+  localStorage.removeItem(STORAGE_KEYS.PROFILES);
+  localStorage.removeItem(STORAGE_KEYS.TESTS_MASTER);
+  localStorage.removeItem('healit_financial_expenses');
+  localStorage.removeItem('healit_financial_categories');
+  localStorage.removeItem('healit_financial_reminders');
+  
+  // Re-initialize with fresh data
+  localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(PROFILES));
+  
+  const defaultSettings = {
+    allowStaffInlineCreate: false,
+    allowStaffEditPrice: false,
+    labName: 'HEALit Med Laboratories',
+    labAddress: 'Kunnathpeedika Centre',
+    labPhone: '7356865161',
+    labEmail: 'info@healitlab.com'
+  };
+  localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(defaultSettings));
+  
+  // Dispatch update event
+  dispatchDataUpdate('all');
+  
+  return true;
 };
 
 // Test Master Operations
@@ -132,6 +170,7 @@ export const addPatient = (patientData) => {
   };
   patients.push(newPatient);
   localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
+  dispatchDataUpdate('patients');
   return newPatient;
 };
 
@@ -141,9 +180,42 @@ export const updatePatient = (patientId, updates) => {
   if (index !== -1) {
     patients[index] = { ...patients[index], ...updates, updatedAt: new Date().toISOString() };
     localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
+    dispatchDataUpdate('patients');
     return patients[index];
   }
   return null;
+};
+
+export const deletePatient = (patientId) => {
+  const patients = getPatients();
+  const visits = getVisits();
+  const results = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESULTS) || '[]');
+  const invoices = JSON.parse(localStorage.getItem(STORAGE_KEYS.INVOICES) || '[]');
+  
+  // Filter out patient
+  const updatedPatients = patients.filter(p => p.patientId !== patientId);
+  
+  // Filter out all visits for this patient
+  const patientVisits = visits.filter(v => v.patientId === patientId);
+  const visitIds = patientVisits.map(v => v.visitId);
+  const updatedVisits = visits.filter(v => v.patientId !== patientId);
+  
+  // Filter out all results for this patient's visits
+  const updatedResults = results.filter(r => !visitIds.includes(r.visitId));
+  
+  // Filter out all invoices for this patient's visits
+  const updatedInvoices = invoices.filter(i => !visitIds.includes(i.visitId));
+  
+  // Save updated data
+  localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(updatedPatients));
+  localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(updatedVisits));
+  localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(updatedResults));
+  localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(updatedInvoices));
+  
+  // Dispatch update event
+  dispatchDataUpdate('patients');
+  
+  return true;
 };
 
 // Visit Operations (with Snapshot)
@@ -167,10 +239,15 @@ export const createVisit = (visitData) => {
     ...visitData,
     visitId: `VISIT_${Date.now()}`,
     status: 'tests_selected',
+    pdfGenerated: false,
+    invoiceGenerated: false,
+    paymentStatus: 'unpaid',
+    paidAt: null,
     createdAt: new Date().toISOString()
   };
   visits.push(newVisit);
   localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
+  dispatchDataUpdate('visits');
   return newVisit;
 };
 
@@ -180,9 +257,37 @@ export const updateVisit = (visitId, updates) => {
   if (index !== -1) {
     visits[index] = { ...visits[index], ...updates, updatedAt: new Date().toISOString() };
     localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
+    dispatchDataUpdate('visits');
     return visits[index];
   }
   return null;
+};
+
+// PDF Generation with tracking
+export const markPDFGenerated = (visitId) => {
+  return updateVisit(visitId, { 
+    pdfGenerated: true, 
+    pdfGeneratedAt: new Date().toISOString() 
+  });
+};
+
+// Invoice Generation with automatic payment marking
+export const markInvoiceGenerated = (visitId) => {
+  return updateVisit(visitId, { 
+    invoiceGenerated: true, 
+    invoiceGeneratedAt: new Date().toISOString(),
+    paymentStatus: 'paid', // Auto-mark as paid when invoice generated
+    paidAt: new Date().toISOString()
+  });
+};
+
+// Manual payment status update
+export const updatePaymentStatus = (visitId, status) => {
+  const updates = { paymentStatus: status };
+  if (status === 'paid') {
+    updates.paidAt = new Date().toISOString();
+  }
+  return updateVisit(visitId, updates);
 };
 
 // Result Operations
@@ -202,8 +307,9 @@ export const saveResults = (visitId, results) => {
   
   localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(filtered));
   
-  // Update visit status
-  updateVisit(visitId, { status: 'results_entered' });
+  // CRITICAL FIX: DO NOT auto-update status to 'results_entered'
+  // Status changes only when Generate Report is explicitly clicked!
+  // This was causing premature status updates on auto-save
   
   return newResults;
 };
@@ -215,8 +321,11 @@ export const updateVisitResults = (visitId, testsWithResults) => {
   if (visitIndex !== -1) {
     visits[visitIndex].tests = testsWithResults;
     visits[visitIndex].updatedAt = new Date().toISOString();
-    visits[visitIndex].status = 'results_entered';
+    // CRITICAL FIX: DO NOT auto-update status here!
+    // Status should only change to 'results_entered' when Generate Report is clicked
+    // NOT when auto-saving results!
     localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
+    dispatchDataUpdate('visits');
     return visits[visitIndex];
   }
   return null;
@@ -280,6 +389,7 @@ export const searchTests = (searchTerm) => {
 
 export default {
   initializeSeedData,
+  clearAllData,
   getTestsMaster,
   getTestById,
   addTestToMaster,
@@ -291,6 +401,7 @@ export default {
   getPatientById,
   addPatient,
   updatePatient,
+  deletePatient,
   getVisits,
   getVisitById,
   getVisitsByPatientId,

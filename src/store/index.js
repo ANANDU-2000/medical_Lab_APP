@@ -10,9 +10,9 @@ export const useAuthStore = create(
       role: getCurrentUser()?.role || null,
       isAuthenticated: !!getCurrentUser(),
       
-      login: async (email, password) => {
+      login: async (usernameOrEmail, password) => {
         try {
-          const { user } = authLogin(email, password);
+          const { user } = authLogin(usernameOrEmail, password);
           set({ 
             user, 
             role: user.role,

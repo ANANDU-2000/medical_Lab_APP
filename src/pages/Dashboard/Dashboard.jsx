@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Users, TrendingUp, Plus, FileText, TestTube, 
   ArrowUpRight, ArrowDownRight, Eye, Edit, DollarSign,
-  TrendingDown, Activity
+  TrendingDown, Activity, AlertCircle, Clock, CheckCircle, XCircle
 } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import { getAdminDashboardData, getStaffDashboardData } from '../../services/dashboardService';
+import { getVisits } from '../../features/shared/dataService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import './Dashboard.css';
@@ -16,14 +17,43 @@ const Dashboard = () => {
   const { role, user } = useAuthStore();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [alerts, setAlerts] = useState({ waiting: [], unpaid: [], pendingResults: [] });
 
   // Load dashboard data
   useEffect(() => {
+    loadDashboardData();
+    
+    // Listen for data updates
+    const handleDataUpdate = () => {
+      loadDashboardData();
+    };
+    
+    window.addEventListener('healit-data-update', handleDataUpdate);
+    return () => window.removeEventListener('healit-data-update', handleDataUpdate);
+  }, [role, user]);
+
+  const loadDashboardData = () => {
     setLoading(true);
     try {
       if (role === 'admin') {
         const data = getAdminDashboardData();
         setDashboardData(data);
+        
+        // Load alerts for admin - FIXED LOGIC
+        const allVisits = getVisits();
+        // WAITING = Sample collected, waiting for results entry (sample_times_set)
+        const waitingPatients = allVisits.filter(v => v.status === 'sample_times_set');
+        // UNPAID = Payment not received yet (check for undefined too)
+        const unpaidInvoices = allVisits.filter(v => !v.paymentStatus || v.paymentStatus === 'unpaid');
+        // PENDING RESULTS = Sample times set but report not yet generated
+        // (This includes both entering results AND generating report)
+        const pendingResults = allVisits.filter(v => v.status === 'sample_times_set' && !v.reportedAt);
+        
+        setAlerts({
+          waiting: waitingPatients.slice(0, 5),
+          unpaid: unpaidInvoices.slice(0, 5),
+          pendingResults: pendingResults.slice(0, 5)
+        });
       } else {
         const data = getStaffDashboardData(user?.userId);
         setDashboardData(data);
@@ -33,7 +63,7 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [role, user]);
+  };
 
   if (loading || !dashboardData) {
     return (
@@ -48,23 +78,31 @@ const Dashboard = () => {
   if (role === 'staff') {
     return (
       <div className="dashboard staff-dashboard">
+        {/* Header */}
+        <div className="dashboard-header">
+          <div>
+            <h1>Staff Dashboard</h1>
+            <p>Welcome back! Here are your tasks for today</p>
+          </div>
+        </div>
+
         {/* Quick Actions for Staff */}
         <div className="quick-actions-section">
           <h2 className="section-title">Quick Actions</h2>
           <div className="quick-actions-grid">
             <div className="action-card" onClick={() => navigate('/patients/add-patient')}>
-              <div className="action-icon">
-                <Plus size={50} />
+              <div className="action-icon" style={{ background: '#000000' }}>
+                <Plus size={40} color="#FFFFFF" />
               </div>
-              <h3>Add New Patient</h3>
-              <p>Register a new patient</p>
+              <h3>Add Patient</h3>
+              <p>Register new</p>
             </div>
             <div className="action-card" onClick={() => navigate('/patients')}>
-              <div className="action-icon">
-                <TestTube size={50} />
+              <div className="action-icon" style={{ background: '#059669' }}>
+                <TestTube size={40} color="#FFFFFF" />
               </div>
               <h3>Pending Results</h3>
-              <p>Enter test results</p>
+              <p>Enter results</p>
             </div>
           </div>
         </div>
@@ -104,12 +142,14 @@ const Dashboard = () => {
                       <td>{patient.age}Y / {patient.gender}</td>
                       <td>{patient.phone}</td>
                       <td>
-                        <span className={`status-badge status-${patient.status.toLowerCase().replace(' ', '-')}`}>
-                          {patient.status}
+                        <span className={`status-badge status-${patient.status.toLowerCase().replace('_', '-')}`}>
+                          {patient.status === 'tests_selected' ? 'Registered' :
+                           patient.status === 'sample_times_set' ? 'Sample Collected' :
+                           patient.status === 'report_generated' ? 'Completed' : patient.status}
                         </span>
                       </td>
                       <td>
-                        {patient.status === 'Result Pending' && (
+                        {patient.status === 'sample_times_set' && (
                           <Button 
                             size="small" 
                             variant="primary"
@@ -118,12 +158,12 @@ const Dashboard = () => {
                             Enter Results
                           </Button>
                         )}
-                        {patient.status === 'Completed' && (
+                        {patient.status === 'report_generated' && (
                           <Button 
                             size="small" 
                             variant="secondary"
                             icon={Eye}
-                            onClick={() => navigate(`/patients/${patient.patientId}`)}
+                            onClick={() => navigate(`/patients/${patient.visitId}`)}
                           >
                             View
                           </Button>
@@ -198,14 +238,6 @@ const Dashboard = () => {
   // Admin Dashboard
   return (
     <div className="dashboard admin-dashboard">
-      {/* Dashboard Header */}
-      <div className="dashboard-header">
-        <div>
-          <h1>Dashboard</h1>
-          <p>Here's what's happening with your lab today</p>
-        </div>
-      </div>
-
       <div className="dashboard-grid">
         {/* Left Section - Quick Actions + Stats */}
         <div className="dashboard-left">
@@ -214,22 +246,22 @@ const Dashboard = () => {
             <h2 className="section-title">Quick Actions</h2>
             <div className="quick-actions-grid">
               <div className="action-card" onClick={() => navigate('/patients/add-patient')}>
-                <div className="action-icon" style={{ background: '#2563EB' }}>
-                  <Plus size={50} />
+                <div className="action-icon" style={{ background: '#000000' }}>
+                  <Plus size={28} />
                 </div>
                 <h3>Add New Patient</h3>
                 <p>Register a new patient</p>
               </div>
               <div className="action-card" onClick={() => navigate('/patients')}>
-                <div className="action-icon" style={{ background: '#059669' }}>
-                  <TestTube size={50} />
+                <div className="action-icon" style={{ background: '#000000' }}>
+                  <TestTube size={28} />
                 </div>
                 <h3>Pending Results</h3>
                 <p>Enter test results</p>
               </div>
               <div className="action-card" onClick={() => navigate('/patients')}>
-                <div className="action-icon" style={{ background: '#DC2626' }}>
-                  <FileText size={50} />
+                <div className="action-icon" style={{ background: '#000000' }}>
+                  <FileText size={28} />
                 </div>
                 <h3>Generate Report</h3>
                 <p>Create PDF reports</p>
@@ -243,7 +275,7 @@ const Dashboard = () => {
             <div className="metrics-grid">
               {stats.map((stat, index) => (
                 <div key={index} className="metric-card">
-                  <div className="metric-icon" style={{ background: `${stat.color}15`, color: stat.color }}>
+                  <div className="metric-icon">
                     <stat.icon size={24} />
                   </div>
                   <div className="metric-content">
@@ -251,13 +283,11 @@ const Dashboard = () => {
                     <h3 className="metric-value">{stat.value}</h3>
                     <div className="metric-trend">
                       {stat.trendUp ? (
-                        <ArrowUpRight size={16} color="#059669" />
+                        <ArrowUpRight size={16} />
                       ) : (
-                        <ArrowDownRight size={16} color="#DC2626" />
+                        <ArrowDownRight size={16} />
                       )}
-                      <span style={{ color: stat.trendUp ? '#059669' : '#DC2626' }}>
-                        {stat.trend}
-                      </span>
+                      <span>{stat.trend}</span>
                     </div>
                   </div>
                 </div>
@@ -302,12 +332,14 @@ const Dashboard = () => {
                         <td>{patient.phone}</td>
                         <td>{patient.profileName || 'N/A'}</td>
                         <td>
-                          <span className={`status-badge status-${patient.status.toLowerCase().replace(' ', '-')}`}>
-                            {patient.status}
+                          <span className={`status-badge status-${patient.status.toLowerCase().replace('_', '-')}`}>
+                            {patient.status === 'tests_selected' ? 'Registered' :
+                             patient.status === 'sample_times_set' ? 'Sample Collected' :
+                             patient.status === 'report_generated' ? 'Completed' : patient.status}
                           </span>
                         </td>
                         <td>
-                          {patient.status === 'Result Pending' && (
+                          {patient.status === 'sample_times_set' && (
                             <Button 
                               size="small" 
                               variant="primary"
@@ -316,12 +348,12 @@ const Dashboard = () => {
                               Enter Results
                             </Button>
                           )}
-                          {patient.status === 'Completed' && (
+                          {patient.status === 'report_generated' && (
                             <Button 
                               size="small" 
                               variant="secondary"
                               icon={Eye}
-                              onClick={() => navigate(`/patients/${patient.patientId}`)}
+                              onClick={() => navigate(`/patients/${patient.visitId}`)}
                             >
                               View Report
                             </Button>
@@ -379,28 +411,9 @@ const Dashboard = () => {
               {financialToday.map((item, index) => (
                 <div key={index} className="financial-item">
                   <p className="financial-label">{item.title}</p>
-                  <h4 className="financial-value" style={{ color: item.color }}>
-                    {item.value}
-                  </h4>
+                  <h4 className="financial-value">{item.value}</h4>
                 </div>
               ))}
-            </div>
-            <div className="financial-chart">
-              <h4>Last 7 Days</h4>
-              <div className="chart-bars">
-                {dashboardData.revenue7days.map((day, index) => {
-                  const maxRevenue = Math.max(...dashboardData.revenue7days.map(d => d.value));
-                  const height = maxRevenue > 0 ? (day.value / maxRevenue) * 100 : 0;
-                  return (
-                    <div key={index} className="chart-bar-wrapper">
-                      <div className="chart-bar" style={{ height: `${height}%`, background: '#2563EB' }}>
-                        <span className="bar-value">₹{day.value > 0 ? (day.value / 1000).toFixed(1) + 'k' : '0'}</span>
-                      </div>
-                      <span className="bar-label">{day.date}</span>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           </Card>
         </div>

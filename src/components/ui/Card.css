@@ -1,14 +1,16 @@
 .card {
-  background: var(--bg-card);
+  background: #FFFFFF;
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  border: 1px solid var(--border);
+  border: 1px solid #E5E5E5;
   overflow: hidden;
   transition: var(--transition);
 }
 
 .card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px) scale(1.01);
+  border-color: #D1D1D1;
 }
 
 .card-header {
@@ -16,15 +18,15 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-5) var(--space-6);
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-secondary);
+  border-bottom: 2px solid #E5E5E5;
+  background: #F8F8F8;
 }
 
 .card-title {
   margin: 0;
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--text);
+  color: #000000;
   letter-spacing: -0.02em;
   display: flex;
   align-items: center;
@@ -35,7 +37,7 @@
   content: '';
   width: 4px;
   height: 20px;
-  background: var(--primary);
+  background: #000000;
   border-radius: var(--radius-sm);
 }
 
