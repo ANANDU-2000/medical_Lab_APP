@@ -133,7 +133,8 @@ const Patients = () => {
     }
     
     // Check if tests have actual result values
-    const hasResultValues = visit.tests.some(t => t.result?.value);
+    // Tests store values directly as test.value (not test.result.value)
+    const hasResultValues = visit.tests.some(t => t.value || t.result?.value);
     if (!hasResultValues) {
       toast.error('❌ Cannot generate PDF: No test result values found!');
       return;
@@ -198,7 +199,8 @@ const Patients = () => {
     }
     
     // Check if tests have actual result values
-    const hasResultValues = visit.tests.some(t => t.result?.value);
+    // Tests store values directly as test.value (not test.result.value)
+    const hasResultValues = visit.tests.some(t => t.value || t.result?.value);
     if (!hasResultValues) {
       toast.error('❌ Cannot generate invoice: No test result values found!');
       return;

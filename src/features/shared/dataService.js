@@ -27,12 +27,49 @@ export const initializeSeedData = () => {
   if (storedVersion !== currentVersion) {
     console.log('Data structure updated, reloading profiles...');
     localStorage.removeItem(STORAGE_KEYS.PROFILES);
+    localStorage.removeItem(STORAGE_KEYS.TESTS_MASTER);
     localStorage.setItem('healit_data_version', currentVersion);
   }
   
   // Initialize profiles with full test data
   if (!localStorage.getItem(STORAGE_KEYS.PROFILES)) {
     localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(PROFILES));
+  }
+  
+  // Initialize TESTS_MASTER from all profile tests
+  if (!localStorage.getItem(STORAGE_KEYS.TESTS_MASTER)) {
+    const testMap = new Map();
+    
+    // Extract all unique tests from profiles
+    PROFILES.forEach(profile => {
+      if (profile.tests && Array.isArray(profile.tests)) {
+        profile.tests.forEach(test => {
+          if (!testMap.has(test.testId)) {
+            testMap.set(test.testId, {
+              testId: test.testId,
+              name: test.name,
+              description: test.description || '',
+              code: test.testId, // Use testId as code
+              unit: test.unit || '',
+              bioReference: test.bioReference || '',
+              refLow: null, // Will be parsed from bioReference if needed
+              refHigh: null,
+              refText: test.bioReference || '',
+              inputType: 'number', // Default to number input
+              dropdownOptions: [],
+              price: test.price || 0,
+              category: test.testId.match(/^([A-Z]+)/)?.[1] || 'General', // Extract category from testId (e.g., CBC, LFT, KFT)
+              active: true,
+              createdAt: new Date().toISOString()
+            });
+          }
+        });
+      }
+    });
+    
+    const testsMaster = Array.from(testMap.values());
+    localStorage.setItem(STORAGE_KEYS.TESTS_MASTER, JSON.stringify(testsMaster));
+    console.log(`Initialized ${testsMaster.length} tests in TESTS_MASTER`);
   }
   
   if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
@@ -61,19 +98,10 @@ export const clearAllData = () => {
   localStorage.removeItem('healit_financial_expenses');
   localStorage.removeItem('healit_financial_categories');
   localStorage.removeItem('healit_financial_reminders');
+  localStorage.removeItem('healit_data_version');
   
-  // Re-initialize with fresh data
-  localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(PROFILES));
-  
-  const defaultSettings = {
-    allowStaffInlineCreate: false,
-    allowStaffEditPrice: false,
-    labName: 'HEALit Med Laboratories',
-    labAddress: 'Kunnathpeedika Centre',
-    labPhone: '7356865161',
-    labEmail: 'info@healitlab.com'
-  };
-  localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(defaultSettings));
+  // Re-initialize with fresh data by calling initializeSeedData
+  initializeSeedData();
   
   // Dispatch update event
   dispatchDataUpdate('all');

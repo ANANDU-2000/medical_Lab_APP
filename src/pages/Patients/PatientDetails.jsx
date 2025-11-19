@@ -227,12 +227,13 @@ const PatientDetails = () => {
   const visitStatus = visit?.status || 'tests_selected';
   
   // CRITICAL FIX: hasResults must check BOTH status AND actual test values
+  // Tests store values directly as test.value (not test.result.value)
   const hasResults = (
     (visitStatus === 'report_generated' || visitStatus === 'completed') && 
     visit?.reportedAt && 
     visit?.tests && 
     visit.tests.length > 0 &&
-    visit.tests.some(t => t.result?.value)
+    visit.tests.some(t => t.value || t.result?.value) // Check both formats for compatibility
   );
   // FIXED WORKFLOW STEPS: Include completed status
   // ACTUAL STATUS FLOW: tests_selected → sample_times_set → report_generated → completed
