@@ -1,6 +1,36 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { format } from 'date-fns';
+import { LOGO_PATHS } from './assetPath';
+
+/**
+ * Format date/time for display - matches report format: "20 Nov 2025, 10:23 am"
+ */
+const formatDateTime = (isoString) => {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  const day = date.getDate();
+  const month = date.toLocaleString('en-US', { month: 'short' });
+  const year = date.getFullYear();
+  const hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const period = hours >= 12 ? 'pm' : 'am';
+  const hour12 = hours % 12 || 12;
+  
+  return `${day} ${month} ${year}, ${hour12}:${minutes} ${period}`;
+};
+
+/**
+ * Format date only (no time): "20 Nov 2025"
+ */
+const formatDate = (isoString) => {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  const day = date.getDate();
+  const month = date.toLocaleString('en-US', { month: 'short' });
+  const year = date.getFullYear();
+  
+  return `${day} ${month} ${year}`;
+};
 
 /**
  * Generate Invoice/Bill PDF for HEALit Med Laboratories
@@ -34,8 +64,7 @@ export const generateInvoicePDF = (invoiceData) => {
   
   // Left Logo - HEALit
   try {
-    const healitLogo = '/images/@heal original editable file (png).png';
-    doc.addImage(healitLogo, 'PNG', 15, logoY, logoHeight * 1.5, logoHeight);
+    doc.addImage(LOGO_PATHS.healit, 'PNG', 15, logoY, logoHeight * 1.5, logoHeight);
   } catch (error) {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -51,8 +80,7 @@ export const generateInvoicePDF = (invoiceData) => {
 
   // Right Logo - Thyrocare
   try {
-    const partnerLogo = '/images/download.jpeg.jpg';
-    doc.addImage(partnerLogo, 'JPEG', pageWidth - 15 - logoHeight * 1.5, logoY, logoHeight * 1.5, logoHeight);
+    doc.addImage(LOGO_PATHS.partner, 'JPEG', pageWidth - 15 - logoHeight * 1.5, logoY, logoHeight * 1.5, logoHeight);
   } catch (error) {
     doc.setFontSize(10);
     doc.setTextColor(30, 58, 138);
@@ -111,7 +139,7 @@ export const generateInvoicePDF = (invoiceData) => {
     `Phone: ${patient.phone || '-'}`,
     `Age/Gender: ${patient.age || '-'}Y / ${patient.gender || '-'}`,
     `Visit ID: ${patient.visitId || '-'}`,
-    `Date: ${patient.date ? format(new Date(patient.date), 'dd-MMM-yyyy') : '-'}`
+    `Date: ${patient.date ? formatDate(patient.date) : '-'}`
   ];
 
   patientLines.forEach(line => {
@@ -140,10 +168,22 @@ export const generateInvoicePDF = (invoiceData) => {
   yPos -= 30;
   const invoiceLines = [
     `Invoice No: ${invoice.invoiceNumber || 'INV-' + Date.now()}`,
-    `Generated: ${invoice.generatedOn ? format(new Date(invoice.generatedOn), 'dd-MMM-yyyy HH:mm') : format(new Date(), 'dd-MMM-yyyy HH:mm')}`,
+    `Generated: ${invoice.generatedOn ? formatDateTime(invoice.generatedOn) : formatDateTime(new Date())}`,
     `Staff: ${invoice.staffName || '-'}`,
     `Method: ${invoice.method || 'Cash'}`
   ];
+
+  // Add test times if available (from visit data)
+  const times = invoiceData.times || {};
+  if (times.collected) {
+    invoiceLines.push(`Collected On: ${formatDateTime(times.collected)}`);
+  }
+  if (times.received) {
+    invoiceLines.push(`Received On: ${formatDateTime(times.received)}`);
+  }
+  if (times.reported) {
+    invoiceLines.push(`Reported On: ${formatDateTime(times.reported)}`);
+  }
 
   invoiceLines.forEach(line => {
     doc.text(line, rightCol, yPos);

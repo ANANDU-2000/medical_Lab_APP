@@ -1,17 +1,19 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { LOGO_PATHS } from './assetPath';
 
-// HEALit Brand Colors
+// HEALit Brand Colors - Simplified for Professional Reports
 const COLORS = {
-  primary: '#1E3A8A',      // HEALit Blue
-  accent: '#2563EB',       // Bright Blue
-  border: '#E5E7EB',       // Light Gray
-  text: '#111827',         // Dark Black
+  primary: '#0b64a0',      // HEALit Blue (--accent from HTML)
+  accent: '#0b64a0',       // Same as primary
+  border: '#e6e6e6',       // Light Gray border
+  text: '#111',            // Dark Black text
+  muted: '#666',           // Muted text
   high: '#EF4444',         // Red for HIGH
   low: '#3B82F6',          // Blue for LOW
-  normal: '#111827',       // Black for NORMAL
-  headerBg: '#2563EB',     // Table header background
-  rowAlt: '#F9FAFB',       // Alternating row color
+  normal: '#111',          // Black for NORMAL
+  headerBg: '#e6e6e6',     // Table header background (subtle)
+  rowAlt: '#ffffff',       // No alternating (white)
   noteBg: '#F3F4F6'        // Light background
 };
 
@@ -28,134 +30,106 @@ export const generateReportPDF = (visitData) => {
   let yPos = margin;
 
   // ========================================
-  // HEADER SECTION - CENTER ALIGNED
+  // HEADER SECTION - WITH LOGOS
   // ========================================
   
-  // Header border top
+  // Top border
   doc.setDrawColor(COLORS.border);
   doc.setLineWidth(0.5);
   doc.line(margin, yPos, pageWidth - margin, yPos);
-  yPos += 8;
-
+  yPos += 3;
+  
   // Add logos at top
-  const logoHeight = 22;
-  const logoWidth = logoHeight * 1.6;
+  const logoHeight = 24;
   const logoY = yPos;
   
   // Left Logo - HEALit
   try {
-    const healitLogo = '/images/@heal original editable file (png).png';
-    doc.addImage(healitLogo, 'PNG', margin, logoY, logoWidth, logoHeight);
+    doc.addImage(LOGO_PATHS.healit, 'PNG', margin, logoY, logoHeight * 1.5, logoHeight);
   } catch (error) {
     console.log('HEALit logo not loaded');
   }
   
-  // Right Logo - Partner
+  // Center title - Lab Name
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.setTextColor(0, 0, 0);
+  doc.text('HEALit Med Laboratories', pageWidth / 2, logoY + 12, { align: 'center' });
+  
+  // Right Logo - Thyrocare
   try {
-    const partnerLogo = '/images/download.jpeg.jpg';
-    doc.addImage(partnerLogo, 'JPEG', pageWidth - margin - logoWidth, logoY, logoWidth, logoHeight);
+    doc.addImage(LOGO_PATHS.partner, 'JPEG', pageWidth - margin - logoHeight * 1.5, logoY, logoHeight * 1.5, logoHeight);
   } catch (error) {
     console.log('Partner logo not loaded');
   }
 
-  yPos += logoHeight + 5;
-
-  // Center Header - Lab Name
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(COLORS.primary);
-  doc.text('HEALit Med Laboratories', pageWidth / 2, yPos, { align: 'center' });
-  yPos += 6;
+  yPos += logoHeight + 3;
   
-  // Center Address
+  // Lab Address & Contact (below logos)
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(COLORS.text);
+  doc.setFontSize(11);
+  doc.setTextColor('#111'); // Black text
   doc.text('Kunnathpeedika – Thrissur, Kerala', pageWidth / 2, yPos, { align: 'center' });
-  yPos += 5;
+  yPos += 4;
   
   doc.setFontSize(9);
-  doc.setTextColor('#6B7280');
+  doc.setTextColor('#666'); // Muted gray
   doc.text('Phone: 7356865161 | Email: healitlab@gmail.com', pageWidth / 2, yPos, { align: 'center' });
-  yPos += 6;
+  yPos += 5;
 
-  // Bottom border
+  // Bottom border separator
   doc.setDrawColor(COLORS.border);
   doc.setLineWidth(0.5);
   doc.line(margin, yPos, pageWidth - margin, yPos);
-  yPos += 8;
+  yPos += 10;
 
   // ========================================
-  // PATIENT DETAILS BLOCK
+  // PATIENT & TEST DETAILS - TWO COLUMN LAYOUT
   // ========================================
   
-  const blockHeight = 45;
-  const blockWidth = pageWidth - 2 * margin;
-  const midPoint = pageWidth / 2;
-
-  // Background box
-  doc.setFillColor('#F9FAFB');
-  doc.rect(margin, yPos, blockWidth, blockHeight, 'F');
-  doc.setDrawColor(COLORS.border);
-  doc.setLineWidth(0.3);
-  doc.rect(margin, yPos, blockWidth, blockHeight);
-
-  // Vertical divider
-  doc.line(midPoint, yPos, midPoint, yPos + blockHeight);
-
-  const leftX = margin + 6;
-  const rightX = midPoint + 6;
-  let leftY = yPos + 8;
-  let rightY = yPos + 8;
+  const leftX = margin;
+  const rightX = 115; // Right column starts at 115mm
+  let leftY = yPos;
+  let rightY = yPos;
   const lineHeight = 6;
 
-  // LEFT COLUMN
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(COLORS.text);
+  doc.setFontSize(9);
+  doc.setTextColor('#111'); // Black text
 
   const addLeftRow = (label, value) => {
-    doc.setFont('helvetica', 'bold');
-    doc.text(label, leftX, leftY);
+    const combined = `${label} ${value || '—'}`;
     doc.setFont('helvetica', 'normal');
-    doc.text(String(value || '—'), leftX + 30, leftY);
+    doc.text(combined, leftX, leftY);
     leftY += lineHeight;
   };
 
+  const addRightRow = (label, value) => {
+    const combined = `${label} ${value || '—'}`;
+    doc.setFont('helvetica', 'normal');
+    doc.text(combined, rightX, rightY);
+    rightY += lineHeight;
+  };
+
+  // LEFT COLUMN - Patient Details
   addLeftRow('Patient Name:', visitData.patient.name);
   addLeftRow('Age / Gender:', `${visitData.patient.age} yrs / ${visitData.patient.gender}`);
   addLeftRow('Phone:', visitData.patient.phone);
   
   // Address - multiline if needed
   const address = visitData.patient.address || 'Not provided';
-  doc.setFont('helvetica', 'bold');
-  doc.text('Address:', leftX, leftY);
   doc.setFont('helvetica', 'normal');
+  doc.text('Address: ' + address, leftX, leftY);
+  leftY += lineHeight;
   
-  // Handle long addresses with text wrapping
-  const addressLines = doc.splitTextToSize(address, 80);
-  addressLines.forEach((line, idx) => {
-    doc.text(line, leftX + 30, leftY + (idx * 5));
-  });
-  leftY += lineHeight + (addressLines.length - 1) * 5;
-  
-  addLeftRow('Referred By:', visitData.patient.referredBy || '—');
+  addLeftRow('Referred By:', visitData.patient.referredBy || 'Self');
 
-  // RIGHT COLUMN
-  const addRightRow = (label, value) => {
-    doc.setFont('helvetica', 'bold');
-    doc.text(label, rightX, rightY);
-    doc.setFont('helvetica', 'normal');
-    doc.text(String(value || '—'), rightX + 40, rightY);
-    rightY += lineHeight;
-  };
-
+  // RIGHT COLUMN - Test Details
   addRightRow('Test Profile:', visitData.profile.name);
   addRightRow('Collected On:', visitData.collectedAt ? formatDateTime(visitData.collectedAt) : '—');
   addRightRow('Received On:', visitData.receivedAt ? formatDateTime(visitData.receivedAt) : '—');
   addRightRow('Reported On:', visitData.reportedAt ? formatDateTime(visitData.reportedAt) : '—');
 
-  yPos += blockHeight + 12;
+  yPos = Math.max(leftY, rightY) + 12;
 
   // ========================================
   // GROUP TESTS BY CATEGORY (if available)
@@ -193,10 +167,18 @@ export const generateReportPDF = (visitData) => {
       const testUnit = test.unit_snapshot || test.unit || '';
       const reference = formatReference(test);
       const resultColor = getResultColor(test);
+      const isAbnormal = isValueAbnormal(test);
       
       return [
         testName,
-        { content: testValue, styles: { textColor: resultColor } },
+        { 
+          content: testValue, 
+          styles: { 
+            textColor: resultColor,
+            fontStyle: isAbnormal ? 'bold' : 'normal',
+            fontSize: isAbnormal ? 11 : 10
+          } 
+        },
         testUnit,
         reference
       ];
@@ -211,213 +193,160 @@ export const generateReportPDF = (visitData) => {
         font: 'helvetica',
         fontSize: 10,
         cellPadding: 4,
-        textColor: COLORS.text,
-        lineColor: COLORS.border,
-        lineWidth: 0.1
+        textColor: '#111',
+        lineColor: [30, 58, 138],
+        lineWidth: 0.1,
+        overflow: 'linebreak'
       },
       headStyles: {
-        fillColor: COLORS.primary,
+        fillColor: [30, 58, 138],
         textColor: '#FFFFFF',
         fontStyle: 'bold',
         fontSize: 10,
         halign: 'center',
+        valign: 'middle',
         cellPadding: 5
       },
       columnStyles: {
         0: { cellWidth: 70, halign: 'left', fontStyle: 'bold' },
-        1: { cellWidth: 35, halign: 'center', fontStyle: 'bold', fontSize: 11 },
-        2: { cellWidth: 25, halign: 'center' },
-        3: { cellWidth: 'auto', halign: 'center' }
+        1: { cellWidth: 35, halign: 'center', fontStyle: 'normal' },
+        2: { cellWidth: 25, halign: 'center', textColor: '#666' },
+        3: { cellWidth: 'auto', halign: 'center', textColor: '#666' }
       },
       alternateRowStyles: {
-        fillColor: COLORS.rowAlt
+        fillColor: [249, 250, 251]
       },
-      margin: { left: margin, right: margin }
+      margin: { left: margin, right: margin },
+      pageBreak: 'auto',
+      rowPageBreak: 'avoid',
+      tableWidth: 'auto'
     });
 
-    yPos = doc.lastAutoTable.finalY + 10;
+    yPos = doc.lastAutoTable.finalY + 5;
   });
 
-  // Add some spacing before billing section
-  yPos += 5;
-
   // ========================================
-  // BILLING SUMMARY SECTION
+  // FOOTER - SIGNATURE SECTION (DYNAMIC POSITIONING)
   // ========================================
   
-  // Calculate billing totals
-  const subtotal = visitData.tests.reduce((sum, test) => {
-    return sum + (test.price_snapshot || test.price || 0);
-  }, 0);
+  // Calculate if we need a new page for signatures
+  const signatureHeight = 35;
+  const footerNoteHeight = 15;
+  const requiredSpace = signatureHeight + footerNoteHeight;
   
-  const discount = visitData.discount || 0;
-  const discountAmount = (subtotal * discount) / 100;
-  const totalAmount = subtotal - discountAmount;
-  
-  // Check if there's enough space, otherwise add new page
-  if (yPos > pageHeight - 80) {
-    doc.addPage();
-    yPos = margin;
-  }
-  
-  // Billing Summary Box - Professional Layout
-  const billingSectionY = yPos;
-  const billingBoxWidth = 90;
-  const billingBoxX = pageWidth - margin - billingBoxWidth;
-  const billingBoxHeight = discount > 0 ? 38 : 30;
-  
-  // Draw billing box with border and shadow effect
-  doc.setDrawColor(COLORS.primary);
-  doc.setLineWidth(0.8);
-  doc.setFillColor('#F8FAFC');
-  doc.roundedRect(billingBoxX, billingSectionY, billingBoxWidth, billingBoxHeight, 3, 3, 'FD');
-  
-  let billingY = billingSectionY + 8;
-  const labelX = billingBoxX + 6;
-  const valueX = billingBoxX + billingBoxWidth - 6;
-  
-  // Subtotal
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor('#64748B');
-  doc.text('Subtotal:', labelX, billingY);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(COLORS.text);
-  doc.text(`₹ ${subtotal.toFixed(2)}`, valueX, billingY, { align: 'right' });
-  billingY += 7;
-  
-  // Discount (only if > 0)
-  if (discount > 0) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor('#64748B');
-    doc.text(`Discount (${discount}%):`, labelX, billingY);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor('#EF4444'); // Red for discount
-    doc.text(`- ₹ ${discountAmount.toFixed(2)}`, valueX, billingY, { align: 'right' });
-    billingY += 7;
-  }
-  
-  // Divider line
-  doc.setDrawColor('#CBD5E1');
-  doc.setLineWidth(0.5);
-  doc.line(labelX, billingY, valueX, billingY);
-  billingY += 6;
-  
-  // Total Amount - Highlighted
-  doc.setFillColor('#EFF6FF');
-  doc.roundedRect(billingBoxX + 3, billingY - 5, billingBoxWidth - 6, 10, 2, 2, 'F');
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(COLORS.primary);
-  doc.text('Total Amount:', labelX, billingY);
-  doc.setFontSize(14);
-  doc.text(`₹ ${totalAmount.toFixed(2)}`, valueX, billingY, { align: 'right' });
-  billingY += 8;
-  
-  // Payment Status Badge
-  if (visitData.paymentStatus === 'paid') {
-    doc.setFillColor('#D1FAE5'); // Light green
-    doc.setDrawColor('#059669');
-    doc.setLineWidth(0.5);
-    const badgeWidth = 35;
-    const badgeHeight = 7;
-    const badgeX = billingBoxX + (billingBoxWidth - badgeWidth) / 2;
-    doc.roundedRect(badgeX, billingY - 4, badgeWidth, badgeHeight, 1.5, 1.5, 'FD');
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor('#065F46');
-    doc.text('✓ PAID', billingBoxX + billingBoxWidth / 2, billingY, { align: 'center' });
-  }
-  
-  // Update yPos to position after billing box
-  yPos = billingSectionY + billingBoxHeight + 15;
-
-  // ========================================
-  // FOOTER - SIGNATURE SECTION (NO NAMES/QUALIFICATIONS)
-  // ========================================
-  
-  // Ensure signatures are on the same page as billing
-  if (yPos > pageHeight - 50) {
+  if (yPos > pageHeight - requiredSpace - 10) {
     doc.addPage();
     yPos = margin + 10;
+  } else {
+    yPos += 10;
   }
   
-  yPos = pageHeight - 40;
+  // Thank you note
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(75, 85, 99);
+  doc.text('Thank you for choosing HEALit Med Laboratories. Get well soon!', margin, yPos);
   
-  // Signature Section Border
-  doc.setDrawColor(COLORS.border);
-  doc.setLineWidth(0.3);
-  doc.line(margin, yPos - 5, pageWidth - margin, yPos - 5);
+  yPos += 8;
+  
+  // Position signatures
+  const leftSigX = margin;
+  const rightSigX = pageWidth - 70;
   
   // LEFT SIGNATURE - Lab Technician
-  const leftSigX = margin + 15;
-  const sigHeight = 18;
-  
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setTextColor(COLORS.text);
-  doc.text('Lab Technician', leftSigX, yPos);
+  doc.setTextColor('#111'); // COLORS.text
+  doc.text('Billed By:', leftSigX, yPos);
   
   // Add technician signature image
   try {
     const technicianSignature = '/images/signatures/rakhi-signature.png';
-    doc.addImage(technicianSignature, 'PNG', leftSigX, yPos + 2, 35, sigHeight);
+    doc.addImage(technicianSignature, 'PNG', leftSigX, yPos + 2, 30, 12);
   } catch (error) {
     try {
       const technicianSignature = '/images/RakiSign.jpg';
-      doc.addImage(technicianSignature, 'JPEG', leftSigX, yPos + 2, 35, sigHeight);
+      doc.addImage(technicianSignature, 'JPEG', leftSigX, yPos + 2, 30, 12);
     } catch (err) {
-      doc.line(leftSigX, yPos + 10, leftSigX + 35, yPos + 10);
+      doc.line(leftSigX, yPos + 8, leftSigX + 40, yPos + 8);
     }
   }
   
-  // Technician Name and Qualification
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(COLORS.text);
-  doc.text('Rakhi T.R', leftSigX, yPos + sigHeight + 6);
-  
-  doc.setFont('helvetica', 'normal');
+  // Name
   doc.setFontSize(8);
-  doc.setTextColor('#6B7280');
-  doc.text('DMLT', leftSigX, yPos + sigHeight + 10);
+  doc.text('Rakhi T.R', leftSigX, yPos + 16);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor('#666');
+  doc.text('DMLT', leftSigX, yPos + 20);
   
-  // RIGHT SIGNATURE - Authorized Signatory (In-charge)
-  const rightSigX = pageWidth - margin - 50;
-  
-  doc.setFont('helvetica', 'bold');
+  // RIGHT SIGNATURE - Authorized Signatory
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setTextColor(COLORS.text);
-  doc.text('Authorized Signatory', rightSigX, yPos);
+  doc.setTextColor('#111'); // COLORS.text
+  doc.text('Authorized Signatory:', rightSigX, yPos);
   
-  // Add in-charge signature image
+  // Add authorized signature image
   try {
-    const inchargeSignature = '/images/signatures/aparna-signature.png';
-    doc.addImage(inchargeSignature, 'PNG', rightSigX, yPos + 2, 35, sigHeight);
+    const authSignature = '/images/signatures/aparna-signature.png';
+    doc.addImage(authSignature, 'PNG', rightSigX, yPos + 2, 30, 12);
   } catch (error) {
     try {
-      const inchargeSignature = '/images/signatures/aparna-signature.jpg';
-      doc.addImage(inchargeSignature, 'JPEG', rightSigX, yPos + 2, 35, sigHeight);
+      const authSignature = '/images/signatures/aparna-signature.jpg';
+      doc.addImage(authSignature, 'JPEG', rightSigX, yPos + 2, 30, 12);
     } catch (err) {
-      doc.line(rightSigX, yPos + 10, rightSigX + 35, yPos + 10);
+      doc.line(rightSigX, yPos + 8, rightSigX + 45, yPos + 8);
     }
   }
   
-  // In-charge Name and Title
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(COLORS.text);
-  doc.text('Aparna A.T', rightSigX, yPos + sigHeight + 6);
+  doc.setFontSize(8);
+  doc.text('Aparna A.T', rightSigX, yPos + 16);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor('#666');
+  doc.text('Incharge', rightSigX, yPos + 20);
+  
+  yPos += 25;
+  
+  // ========================================
+  // FOOTER NOTE - Source Reference
+  // ========================================
+  
+  doc.setDrawColor(COLORS.border);
+  doc.setLineDash([2, 2]);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  doc.setLineDash([]);
+  yPos += 5;
   
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor('#6B7280');
-  doc.text('Incharge', rightSigX, yPos + sigHeight + 10);
+  doc.setFontSize(9);
+  doc.setTextColor('#666');
+  const fileName = `HEALit_Report_${visitData.patient.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+  doc.text(`Source file: ${fileName}`, pageWidth / 2, yPos, { align: 'center' });
 
   return doc;
+};
+
+/**
+ * Check if value is abnormal (outside reference range)
+ */
+const isValueAbnormal = (test) => {
+  if (!test.value || test.inputType_snapshot !== 'number') {
+    return false;
+  }
+  
+  const numValue = parseFloat(test.value);
+  if (isNaN(numValue)) return false;
+  
+  if (test.refHigh_snapshot && numValue > parseFloat(test.refHigh_snapshot)) {
+    return true; // HIGH
+  }
+  
+  if (test.refLow_snapshot && numValue < parseFloat(test.refLow_snapshot)) {
+    return true; // LOW
+  }
+  
+  return false; // NORMAL
 };
 
 /**
@@ -446,24 +375,25 @@ const formatReference = (test) => {
 
 /**
  * Get result color based on HIGH/LOW/NORMAL status
+ * Returns RGB array for jsPDF compatibility
  */
 const getResultColor = (test) => {
   if (!test.value || test.inputType_snapshot !== 'number') {
-    return COLORS.normal;
+    return [17, 17, 17]; // Black for NORMAL
   }
   
   const numValue = parseFloat(test.value);
-  if (isNaN(numValue)) return COLORS.normal;
+  if (isNaN(numValue)) return [17, 17, 17]; // Black
   
   if (test.refHigh_snapshot && numValue > parseFloat(test.refHigh_snapshot)) {
-    return COLORS.high; // RED for HIGH
+    return [239, 68, 68]; // RED for HIGH
   }
   
   if (test.refLow_snapshot && numValue < parseFloat(test.refLow_snapshot)) {
-    return COLORS.low; // BLUE for LOW
+    return [59, 130, 246]; // BLUE for LOW
   }
   
-  return COLORS.normal; // BLACK for NORMAL
+  return [17, 17, 17]; // BLACK for NORMAL
 };
 
 /**
@@ -484,19 +414,20 @@ const groupTestsByCategory = (tests) => {
 };
 
 /**
- * Format date/time for display
+ * Format date/time for display - matches HTML: "19 Nov 2025, 10:35 pm"
  */
 const formatDateTime = (isoString) => {
   if (!isoString) return '—';
   const date = new Date(isoString);
-  return date.toLocaleString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+  const day = date.getDate();
+  const month = date.toLocaleString('en-US', { month: 'short' });
+  const year = date.getFullYear();
+  const hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const period = hours >= 12 ? 'pm' : 'am';
+  const hour12 = hours % 12 || 12;
+  
+  return `${day} ${month} ${year}, ${hour12}:${minutes} ${period}`;
 };
 
 /**

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, AlertCircle, Save, X, Package } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import { getCurrentUser } from '../../services/authService';
-import { getProfiles, addProfile } from '../../features/shared/dataService';
+import { getProfiles, addProfile } from '../../services/firestoreService';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import toast from 'react-hot-toast';
@@ -430,12 +430,12 @@ const ProfileManager = () => {
                               />
                             </td>
                             <td>
-                              <input
-                                type="text"
+                              <textarea
                                 value={test.bioReference || ''}
                                 onChange={(e) => updateTestInProfile(test.testId, 'bioReference', e.target.value)}
-                                className="table-input"
+                                className="table-textarea"
                                 placeholder="13-17 g/dL (M), 12-15 g/dL (F)"
+                                rows="2"
                               />
                             </td>
                             <td>
@@ -490,13 +490,13 @@ const ProfileManager = () => {
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className="form-group full-width">
                     <label>Bio.Ref.Internal</label>
-                    <input
-                      type="text"
+                    <textarea
                       value={newTest.bioReference}
                       onChange={(e) => setNewTest({ ...newTest, bioReference: e.target.value })}
-                      placeholder="e.g., 13-17 (M), 12-15 (F)"
+                      placeholder="e.g., Adult: 13-17 g/dL (Male), 12-15 g/dL (Female)&#10;Normal: 70-100 mg/dL&#10;Pre-diabetic: 100-125 mg/dL"
+                      rows="3"
                     />
                   </div>
 

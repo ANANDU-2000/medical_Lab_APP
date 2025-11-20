@@ -1,6 +1,22 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { format } from 'date-fns';
+
+/**
+ * Format date/time for display - matches format: "20 Nov 2025, 10:23 am"
+ */
+const formatDateTime = (isoString) => {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  const day = date.getDate();
+  const month = date.toLocaleString('en-US', { month: 'short' });
+  const year = date.getFullYear();
+  const hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const period = hours >= 12 ? 'pm' : 'am';
+  const hour12 = hours % 12 || 12;
+  
+  return `${day} ${month} ${year}, ${hour12}:${minutes} ${period}`;
+};
 
 /**
  * Generate Lab Report PDF for HEALit Med Laboratories
@@ -70,15 +86,15 @@ export const generateLabReportPDF = (reportData) => {
     `Patient Name: ${patient.name || '-'}`,
     `Phone: ${patient.phone || '-'}`,
     `Referred By: ${patient.referredBy || 'Self'}`,
-    `Collected: ${times.collected ? format(new Date(times.collected), 'dd-MMM-yyyy HH:mm') : '-'}`,
-    `Received: ${times.received ? format(new Date(times.received), 'dd-MMM-yyyy HH:mm') : '-'}`
+    `Collected: ${times.collected ? formatDateTime(times.collected) : '-'}`,
+    `Received: ${times.received ? formatDateTime(times.received) : '-'}`
   ];
 
   const rightDetails = [
     `Age/Gender: ${patient.age || '-'}Y / ${patient.gender || '-'}`,
     `Visit ID: ${patient.visitId || '-'}`,
     `Profile: ${patient.testProfile || '-'}`,
-    `Reported: ${times.reported ? format(new Date(times.reported), 'dd-MMM-yyyy HH:mm') : format(new Date(), 'dd-MMM-yyyy HH:mm')}`
+    `Reported: ${times.reported ? formatDateTime(times.reported) : formatDateTime(new Date())}`
   ];
 
   leftDetails.forEach(line => {
