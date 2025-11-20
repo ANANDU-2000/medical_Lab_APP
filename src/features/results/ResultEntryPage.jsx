@@ -173,37 +173,61 @@ const ResultEntryPage = () => {
     const test = visit.tests.find(t => t.testId === testId);
     let status = 'NORMAL';
     
-    // Validate based on input type
+    // Only validate and calculate status for numeric input types
     if (test.inputType_snapshot === 'number') {
-      // Allow empty or valid numbers
-      if (value !== '' && isNaN(parseFloat(value))) {
-        toast.error('Please enter a valid number');
-        return;
-      }
-      
-      const numValue = parseFloat(value);
-      if (!isNaN(numValue)) {
+      // Allow empty string or valid numeric values (int/float)
+      if (value !== '') {
+        const numValue = parseFloat(value);
+        
+        // Strict validation: must be a valid number (int or float)
+        if (isNaN(numValue) || !isFinite(numValue)) {
+          toast.error('Please enter a valid number (integers or decimals only)');
+          return;
+        }
+        
         // Check for negative values
         if (numValue < 0) {
           toast.error('Value cannot be negative');
           return;
         }
         
-        // Auto-detect HIGH/LOW
-        if (test.refHigh_snapshot && numValue > parseFloat(test.refHigh_snapshot)) {
+        // Maximum value check (reasonable medical range)
+        if (numValue > 999999) {
+          toast.error('Value too large (max: 999,999)');
+          return;
+        }
+        
+        // Calculate status based on reference ranges
+        const refHigh = parseFloat(test.refHigh_snapshot);
+        const refLow = parseFloat(test.refLow_snapshot);
+        
+        // Determine status: HIGH, LOW, or NORMAL
+        if (!isNaN(refHigh) && numValue > refHigh) {
           status = 'HIGH';
-        } else if (test.refLow_snapshot && numValue < parseFloat(test.refLow_snapshot)) {
+        } else if (!isNaN(refLow) && numValue < refLow) {
           status = 'LOW';
+        } else {
+          status = 'NORMAL';
         }
       }
+    } else if (test.inputType_snapshot === 'text') {
+      // Text input: no status calculation, always NORMAL
+      status = 'NORMAL';
+      
+      // Validate text length
+      if (value.length > 200) {
+        toast.error('Text value too long (max 200 characters)');
+        return;
+      }
+    } else if (test.inputType_snapshot === 'select') {
+      // Dropdown/select: no status calculation, always NORMAL
+      status = 'NORMAL';
+    } else {
+      // Default: NORMAL for any other type
+      status = 'NORMAL';
     }
     
-    // Validate text length
-    if (test.inputType_snapshot === 'text' && value.length > 200) {
-      toast.error('Text value too long (max 200 characters)');
-      return;
-    }
-    
+    // Update results with value and calculated status
     setResults(prev => ({
       ...prev,
       [testId]: { value, status }
@@ -483,6 +507,11 @@ const ResultEntryPage = () => {
             staffName: currentUser?.fullName || currentUser?.username,
             method: visit.paymentMethod || 'Cash'
           },
+          times: {
+            collected: visit.collectedAt,
+            received: visit.receivedAt,
+            reported: visit.reportedAt
+          },
           items: visit.tests.map(test => ({
             name: test.name_snapshot || test.name || 'Test',
             price: test.price_snapshot || test.price || 0,
@@ -545,6 +574,11 @@ const ResultEntryPage = () => {
           generatedOn: new Date().toISOString(),
           staffName: currentUser?.fullName || currentUser?.username,
           method: visit.paymentMethod || 'Cash'
+        },
+        times: {
+          collected: visit.collectedAt,
+          received: visit.receivedAt,
+          reported: visit.reportedAt
         },
         items: visit.tests.map(test => ({
           name: test.name_snapshot || test.name || 'Test',
