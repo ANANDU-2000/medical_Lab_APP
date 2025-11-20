@@ -54,8 +54,8 @@ export const imageToBase64 = async (imagePath) => {
  * Get logo paths
  */
 export const LOGO_PATHS = {
-  healit: getImagePath('images/@heal original editable file (png).png'),
-  partner: getImagePath('images/download.jpeg.jpg'),
+  healit: getImagePath('images/healit-logo.png'),
+  partner: getImagePath('images/thyrocare-logo.jpg'),
   icon: getImagePath('icon.svg')
 };
 
@@ -63,8 +63,8 @@ export const LOGO_PATHS = {
  * Get signature paths
  */
 export const SIGNATURE_PATHS = {
-  rakhi: getImagePath('images/RakiSign.jpg'),
-  aparna: getImagePath('images/signatures/aparna.png') // if exists
+  rakhi: getImagePath('images/rakhi-signature.jpg'),
+  aparna: getImagePath('images/signatures/aparna-signature.png') // if exists
 };
 
 /**

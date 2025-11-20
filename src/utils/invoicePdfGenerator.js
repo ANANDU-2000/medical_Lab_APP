@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { LOGO_PATHS, imageToBase64 } from './assetPath';
+import { LOGO_PATHS, SIGNATURE_PATHS, imageToBase64 } from './assetPath';
 
 /**
  * Format date/time for display - matches report format: "20 Nov 2025, 10:23 am"
@@ -356,18 +356,13 @@ export const generateInvoicePDF = async (invoiceData) => {
   doc.setTextColor(0, 0, 0);
   doc.text('Billed By:', leftSigX, yPos);
   
-  // Add staff signature image if available
+  // Add staff signature image (convert to base64)
   try {
-    const staffSignature = '/images/signatures/rakhi-signature.png'; // PNG format
-    doc.addImage(staffSignature, 'PNG', leftSigX, yPos + 2, 30, 12);
+    const staffSignatureBase64 = await imageToBase64(SIGNATURE_PATHS.rakhi);
+    doc.addImage(staffSignatureBase64, 'JPEG', leftSigX, yPos + 2, 30, 12);
   } catch (error) {
-    // Fallback to JPG
-    try {
-      const staffSignature = '/images/RakiSign.jpg';
-      doc.addImage(staffSignature, 'JPEG', leftSigX, yPos + 2, 30, 12);
-    } catch (err) {
-      doc.line(leftSigX, yPos + 8, leftSigX + 40, yPos + 8);
-    }
+    console.error('Staff signature failed:', error);
+    doc.line(leftSigX, yPos + 8, leftSigX + 40, yPos + 8);
   }
   
   doc.setFontSize(8);
@@ -379,18 +374,13 @@ export const generateInvoicePDF = async (invoiceData) => {
   doc.setFontSize(9);
   doc.text('Authorized Signatory:', rightSigX, yPos);
   
-  // Add authorized signature image
+  // Add authorized signature image (convert to base64)
   try {
-    const authSignature = '/images/signatures/aparna-signature.png'; // PNG format
-    doc.addImage(authSignature, 'PNG', rightSigX, yPos + 2, 30, 12);
+    const authSignatureBase64 = await imageToBase64(SIGNATURE_PATHS.aparna);
+    doc.addImage(authSignatureBase64, 'PNG', rightSigX, yPos + 2, 30, 12);
   } catch (error) {
-    // Fallback to JPG
-    try {
-      const authSignature = '/images/signatures/aparna-signature.jpg';
-      doc.addImage(authSignature, 'JPEG', rightSigX, yPos + 2, 30, 12);
-    } catch (err) {
-      doc.line(rightSigX, yPos + 8, rightSigX + 45, yPos + 8);
-    }
+    console.error('Auth signature failed:', error);
+    doc.line(rightSigX, yPos + 8, rightSigX + 45, yPos + 8);
   }
   
   doc.setFontSize(8);
