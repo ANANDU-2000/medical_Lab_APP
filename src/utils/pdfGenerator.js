@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { LOGO_PATHS, SIGNATURE_PATHS, imageToBase64 } from './assetPath';
+import { parseRange, checkRangeStatus, getStatusColor, getStatusBgColor, shouldBeBold } from './rangeParser';
 
 // HEALit Brand Colors - Simplified for Professional Reports
 const COLORS = {
@@ -157,8 +158,36 @@ export const generateReportPDF = async (visitData) => {
       const testValue = test.value || '—';
       const testUnit = test.unit_snapshot || test.unit || '';
       const reference = formatReference(test);
-      const resultColor = getResultColor(test);
-      const isAbnormal = isValueAbnormal(test);
+      
+      // Enhanced status detection
+      const numValue = parseFloat(testValue);
+      let status = 'NORMAL';
+      
+      if (!isNaN(numValue)) {
+        // Try numeric refs first
+        if (test.refHigh_snapshot !== null && test.refHigh_snapshot !== undefined &&
+            test.refLow_snapshot !== null && test.refLow_snapshot !== undefined) {
+          const refHigh = parseFloat(test.refHigh_snapshot);
+          const refLow = parseFloat(test.refLow_snapshot);
+          
+          if (!isNaN(refHigh) && !isNaN(refLow)) {
+            if (numValue > refHigh) status = 'HIGH';
+            else if (numValue < refLow) status = 'LOW';
+            else if (numValue === refHigh || numValue === refLow) status = 'BOUNDARY';
+          }
+        } else {
+          // Parse bioReference or refText
+          const rangeStr = test.bioReference_snapshot || test.bioReference || test.refText_snapshot || test.refText;
+          if (rangeStr) {
+            const range = parseRange(rangeStr);
+            status = checkRangeStatus(numValue, range);
+          }
+        }
+      }
+      
+      const resultColor = getStatusColor(status);
+      const isBold = shouldBeBold(status);
+      const bgColor = getStatusBgColor(status);
       
       return [
         testName,
@@ -166,8 +195,9 @@ export const generateReportPDF = async (visitData) => {
           content: testValue, 
           styles: { 
             textColor: resultColor,
-            fontStyle: isAbnormal ? 'bold' : 'normal',
-            fontSize: isAbnormal ? 11 : 10
+            fontStyle: isBold ? 'bold' : 'normal',
+            fontSize: isBold ? 11 : 10,
+            fillColor: bgColor || [255, 255, 255]
           } 
         },
         testUnit,
@@ -179,7 +209,8 @@ export const generateReportPDF = async (visitData) => {
     const estimatedTableHeight = (tests.length * 8) + 20; // Rough estimate
     const spaceLeft = pageHeight - yPos - 60; // Reserve space for footer
     
-    // If not enough space and more than 3 rows, start new page
+    // Strategy: Try to fit entire report on one page if ≤20 tests (compact mode)
+    // Otherwise allow multi-page with clean breaks
     if (spaceLeft < estimatedTableHeight && tests.length > 3 && categoryIndex > 0) {
       doc.addPage();
       yPos = margin + 10;
@@ -210,10 +241,10 @@ export const generateReportPDF = async (visitData) => {
         cellPadding: 6
       },
       columnStyles: {
-        0: { cellWidth: 70, halign: 'left', fontStyle: 'bold' },
-        1: { cellWidth: 30, halign: 'center' },
-        2: { cellWidth: 25, halign: 'center', textColor: [100, 100, 100] },
-        3: { cellWidth: 'auto', halign: 'left', textColor: [100, 100, 100] }
+        0: { cellWidth: 85, halign: 'left', fontStyle: 'bold' }, // 45% of 180mm ≈ 81mm
+        1: { cellWidth: 22, halign: 'center' }, // 12% ≈ 22mm
+        2: { cellWidth: 22, halign: 'center', textColor: [100, 100, 100] }, // 12% ≈ 22mm
+        3: { cellWidth: 55, halign: 'left', textColor: [100, 100, 100], whiteSpace: 'pre-wrap' } // 31% ≈ 56mm
       },
       alternateRowStyles: {
         fillColor: [240, 248, 255] // Light blue striped rows
@@ -324,24 +355,34 @@ export const generateReportPDF = async (visitData) => {
 
 /**
  * Check if value is abnormal (outside reference range)
+ * Enhanced with robust range parsing
  */
 const isValueAbnormal = (test) => {
-  if (!test.value || test.inputType_snapshot !== 'number') {
-    return false;
-  }
+  if (!test.value) return false;
   
   const numValue = parseFloat(test.value);
   if (isNaN(numValue)) return false;
   
-  if (test.refHigh_snapshot && numValue > parseFloat(test.refHigh_snapshot)) {
-    return true; // HIGH
+  // Try numeric ref ranges first
+  if (test.refHigh_snapshot !== null && test.refHigh_snapshot !== undefined) {
+    const refHigh = parseFloat(test.refHigh_snapshot);
+    if (!isNaN(refHigh) && numValue > refHigh) return true;
   }
   
-  if (test.refLow_snapshot && numValue < parseFloat(test.refLow_snapshot)) {
-    return true; // LOW
+  if (test.refLow_snapshot !== null && test.refLow_snapshot !== undefined) {
+    const refLow = parseFloat(test.refLow_snapshot);
+    if (!isNaN(refLow) && numValue < refLow) return true;
   }
   
-  return false; // NORMAL
+  // Parse bioReference or refText if numeric refs not available
+  const rangeStr = test.bioReference_snapshot || test.bioReference || test.refText_snapshot || test.refText;
+  if (rangeStr) {
+    const range = parseRange(rangeStr);
+    const status = checkRangeStatus(numValue, range);
+    return status === 'HIGH' || status === 'LOW';
+  }
+  
+  return false;
 };
 
 /**
@@ -372,26 +413,39 @@ const formatReference = (test) => {
 };
 
 /**
- * Get result color based on HIGH/LOW/NORMAL status
+ * Get result color based on HIGH/LOW/BOUNDARY/NORMAL status
+ * Enhanced with robust range parsing
  * Returns RGB array for jsPDF compatibility
  */
 const getResultColor = (test) => {
-  if (!test.value || test.inputType_snapshot !== 'number') {
-    return [17, 17, 17]; // Black for NORMAL
-  }
+  if (!test.value) return [17, 17, 17];
   
   const numValue = parseFloat(test.value);
-  if (isNaN(numValue)) return [17, 17, 17]; // Black
+  if (isNaN(numValue)) return [17, 17, 17];
   
-  if (test.refHigh_snapshot && numValue > parseFloat(test.refHigh_snapshot)) {
-    return [239, 68, 68]; // RED for HIGH
+  // Try numeric ref ranges first
+  let status = 'NORMAL';
+  
+  if (test.refHigh_snapshot !== null && test.refHigh_snapshot !== undefined &&
+      test.refLow_snapshot !== null && test.refLow_snapshot !== undefined) {
+    const refHigh = parseFloat(test.refHigh_snapshot);
+    const refLow = parseFloat(test.refLow_snapshot);
+    
+    if (!isNaN(refHigh) && !isNaN(refLow)) {
+      if (numValue > refHigh) status = 'HIGH';
+      else if (numValue < refLow) status = 'LOW';
+      else if (numValue === refHigh || numValue === refLow) status = 'BOUNDARY';
+    }
+  } else {
+    // Parse bioReference or refText
+    const rangeStr = test.bioReference_snapshot || test.bioReference || test.refText_snapshot || test.refText;
+    if (rangeStr) {
+      const range = parseRange(rangeStr);
+      status = checkRangeStatus(numValue, range);
+    }
   }
   
-  if (test.refLow_snapshot && numValue < parseFloat(test.refLow_snapshot)) {
-    return [59, 130, 246]; // BLUE for LOW
-  }
-  
-  return [17, 17, 17]; // BLACK for NORMAL
+  return getStatusColor(status);
 };
 
 /**
