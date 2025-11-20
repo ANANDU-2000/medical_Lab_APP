@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, AlertCircle, Save, X, Package } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import { getCurrentUser } from '../../services/authService';
-import { getProfiles, addProfile } from '../../features/shared/dataService';
+import { getProfiles, addProfile } from '../../services/firestoreService';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import toast from 'react-hot-toast';

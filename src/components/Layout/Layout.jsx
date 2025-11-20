@@ -18,7 +18,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuthStore } from '../../store';
-import { getVisits, getPatients } from '../../features/shared/dataService';
+import { getVisits, getPatients } from '../../services/firestoreService';
 import { LOGO_PATHS } from '../../utils/assetPath';
 import './Layout.css';
 
@@ -32,10 +32,10 @@ const Layout = () => {
   const [alerts, setAlerts] = useState({ waiting: [], unpaid: [], pendingResults: [] });
 
   // Load alerts
-  const loadAlerts = useCallback(() => {
+  const loadAlerts = useCallback(async () => {
     if (role === 'admin' || role === 'staff') {
-      const allPatients = getPatients();
-      const allVisits = getVisits();
+      const allPatients = await getPatients();
+      const allVisits = await getVisits();
       
       // Helper to calculate waiting time
       const calculateWaitingTime = (timestamp) => {

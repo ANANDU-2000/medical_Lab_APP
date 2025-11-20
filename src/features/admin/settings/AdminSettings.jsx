@@ -8,7 +8,6 @@ import {
 import { useAuthStore } from '../../../store';
 import { getCurrentUser, getUsers, addUser, updateUser, deleteUser, adminResetPassword } from '../../../services/authService';
 import { getSettings, updateSettings } from '../../../services/settingsService';
-import { clearAllData } from '../../shared/dataService';
 import Button from '../../../components/ui/Button';
 import DataSync from '../../../components/DataSync/DataSync';
 import toast from 'react-hot-toast';
@@ -156,43 +155,9 @@ const AdminSettings = () => {
     toast.success(`Exporting ${type}... (Feature coming soon)`);
   };
   
-  // Clear all data handler
+  // Clear all data handler (DISABLED for Firestore - use Firebase Console)
   const handleClearAllData = () => {
-    const confirmed = window.confirm(
-      '⚠️ WARNING: CLEAR ALL DATA\n\n' +
-      'This will PERMANENTLY DELETE:\n' +
-      '• All patient records\n' +
-      '• All visit history\n' +
-      '• All test results\n' +
-      '• All invoices\n' +
-      '• All financial data (expenses, categories, reminders)\n' +
-      '• All audit logs\n\n' +
-      'Lab profiles and settings will be reset to defaults.\n\n' +
-      'Are you ABSOLUTELY SURE you want to continue?'
-    );
-    
-    if (!confirmed) return;
-    
-    // Second confirmation
-    const doubleConfirmed = window.confirm(
-      '⚠️ FINAL CONFIRMATION\n\n' +
-      'This action CANNOT be undone!\n\n' +
-      'Click OK to confirm and clear all data.'
-    );
-    
-    if (!doubleConfirmed) return;
-    
-    try {
-      clearAllData();
-      toast.success('✅ All data cleared successfully! Starting fresh...');
-      
-      // Reload page after 2 seconds
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-    } catch (error) {
-      toast.error('Failed to clear data: ' + error.message);
-    }
+    toast.error('⚠️ Data clearing is disabled in cloud mode. Please use Firebase Console to manage data.');
   };
   
   if (!settings) {
