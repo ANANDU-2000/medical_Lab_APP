@@ -159,9 +159,9 @@ export const generateReportPDF = async (visitData) => {
     console.log('PDF Table - Tests count:', tests.length);
     
     // Smart pagination: Calculate if table fits on current page
-    // Reserve 90mm for signatures and footer to prevent ANY overlap
+    // Reserve 55mm for signatures and footer (reduced since no acknowledgement box)
     const estimatedTableHeight = (tests.length * 6) + 18;
-    const signatureReservedSpace = 90; // Increased to 90mm for safety
+    const signatureReservedSpace = 55; // Reduced - no acknowledgement box
     const spaceLeft = pageHeight - yPos - signatureReservedSpace;
     
     // Check if we need a new page BEFORE starting table
@@ -176,8 +176,6 @@ export const generateReportPDF = async (visitData) => {
       const testValue = test.value || '—';
       const testUnit = test.unit_snapshot || test.unit || '';
       const reference = formatReference(test);
-      const resultColor = getResultColor(test);
-      const resultBgColor = getResultBgColor(test);
       const isAbnormal = isValueAbnormal(test);
       
       return [
@@ -185,10 +183,9 @@ export const generateReportPDF = async (visitData) => {
         { 
           content: testValue, 
           styles: { 
-            textColor: resultColor,
-            fillColor: resultBgColor || [255, 255, 255],
+            textColor: isAbnormal ? [0, 0, 0] : [0, 0, 0], // Always black text
             fontStyle: isAbnormal ? 'bold' : 'normal',
-            fontSize: isAbnormal ? 10.5 : 10,
+            fontSize: isAbnormal ? 11 : 9.5, // Larger size for abnormal values
             halign: 'center'
           } 
         },
@@ -217,16 +214,16 @@ export const generateReportPDF = async (visitData) => {
         fillColor: [30, 64, 175],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 9,
+        fontSize: 10,
         halign: 'center',
         valign: 'middle',
-        cellPadding: 3.5
+        cellPadding: 4
       },
       columnStyles: {
-        0: { cellWidth: 60, halign: 'left', fontStyle: 'bold', fontSize: 9 },
-        1: { cellWidth: 30, halign: 'center', fontStyle: 'normal', fontSize: 9 },
-        2: { cellWidth: 25, halign: 'center', fontSize: 8.5 },
-        3: { cellWidth: 65, halign: 'left', fontSize: 8, cellPadding: 2, overflow: 'linebreak', whiteSpace: 'normal' }
+        0: { cellWidth: 60, halign: 'left', fontStyle: 'bold', fontSize: 9.5 },
+        1: { cellWidth: 30, halign: 'center' }, // Dynamic styling in tableData
+        2: { cellWidth: 25, halign: 'center', fontSize: 9 },
+        3: { cellWidth: 65, halign: 'left', fontSize: 8.5, cellPadding: 2.5, overflow: 'linebreak', whiteSpace: 'normal' }
       },
       alternateRowStyles: {
         fillColor: [240, 249, 255]
@@ -238,7 +235,7 @@ export const generateReportPDF = async (visitData) => {
       didDrawPage: function(data) {
         const pageBottom = doc.internal.pageSize.getHeight();
         const currentY = data.cursor.y;
-        // Force new page if less than 90mm space remaining
+        // Force new page if less than 55mm space remaining
         if (pageBottom - currentY < signatureReservedSpace) {
           return false; // Stop drawing on this page
         }
@@ -252,18 +249,17 @@ export const generateReportPDF = async (visitData) => {
   // FOOTER - SIGNATURE SECTION (DYNAMIC POSITIONING)
   // ========================================
   
-  // Calculate if we need a new page for signatures and acknowledgement
-  const signatureHeight = 45;
-  const acknowledgementHeight = 40;
-  const footerNoteHeight = 10;
-  const requiredSpace = signatureHeight + acknowledgementHeight + footerNoteHeight;
+  // Calculate if we need a new page for signatures (no acknowledgement box)
+  const signatureHeight = 35;
+  const footerNoteHeight = 12;
+  const requiredSpace = signatureHeight + footerNoteHeight;
   
   // If less than required space, ALWAYS add new page
   if (yPos > pageHeight - requiredSpace - 20) {
     doc.addPage();
     yPos = margin + 15;
   } else {
-    yPos += 15;
+    yPos += 12;
   }
   
   // Thank you note
@@ -284,19 +280,10 @@ export const generateReportPDF = async (visitData) => {
   doc.setTextColor(17, 17, 17);
   doc.text('Billed By:', leftSigX, yPos);
   
-  // Add white background rectangle for signature visibility
-  doc.setFillColor(255, 255, 255);
-  doc.rect(leftSigX, yPos + 2, 32, 13, 'F');
-  
-  // Add border for better visibility
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.3);
-  doc.rect(leftSigX, yPos + 2, 32, 13, 'S');
-  
-  // Add technician signature image (convert to base64)
+  // Add technician signature image (no background box - transparent)
   try {
     const technicianSignatureBase64 = await imageToBase64(SIGNATURE_PATHS.rakhi);
-    doc.addImage(technicianSignatureBase64, 'JPEG', leftSigX + 1, yPos + 3, 30, 11);
+    doc.addImage(technicianSignatureBase64, 'JPEG', leftSigX, yPos + 2, 35, 13);
   } catch (error) {
     console.error('Technician signature failed:', error);
     doc.setDrawColor(100, 100, 100);
@@ -304,12 +291,13 @@ export const generateReportPDF = async (visitData) => {
   }
   
   // Name
-  doc.setFontSize(8);
-  doc.setTextColor(17, 17, 17);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(0, 0, 0);
   doc.text('Rakhi T.R', leftSigX, yPos + 17);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(102, 102, 102);
+  doc.setFontSize(7.5);
+  doc.setTextColor(75, 75, 75);
   doc.text('DMLT', leftSigX, yPos + 21);
   
   // RIGHT SIGNATURE - Authorized Signatory
@@ -318,76 +306,26 @@ export const generateReportPDF = async (visitData) => {
   doc.setTextColor(17, 17, 17);
   doc.text('Authorized Signatory:', rightSigX, yPos);
   
-  // Add white background rectangle
-  doc.setFillColor(255, 255, 255);
-  doc.rect(rightSigX, yPos + 2, 32, 13, 'F');
-  
-  // Add border
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.3);
-  doc.rect(rightSigX, yPos + 2, 32, 13, 'S');
-  
-  // Add authorized signature image (convert to base64)
+  // Add authorized signature image (no background box - transparent)
   try {
     const authSignatureBase64 = await imageToBase64(SIGNATURE_PATHS.aparna);
-    doc.addImage(authSignatureBase64, 'PNG', rightSigX + 1, yPos + 3, 30, 11);
+    doc.addImage(authSignatureBase64, 'PNG', rightSigX, yPos + 2, 35, 13);
   } catch (error) {
     console.error('Auth signature failed:', error);
     doc.setDrawColor(100, 100, 100);
     doc.line(rightSigX + 1, yPos + 10, rightSigX + 31, yPos + 10);
   }
   
-  doc.setFontSize(8);
-  doc.setTextColor(17, 17, 17);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(0, 0, 0);
   doc.text('Aparna A.T', rightSigX, yPos + 17);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(102, 102, 102);
+  doc.setFontSize(7.5);
+  doc.setTextColor(75, 75, 75);
   doc.text('Incharge', rightSigX, yPos + 21);
   
   yPos += 28;
-  
-  // ========================================
-  // PATIENT ACKNOWLEDGEMENT SECTION
-  // ========================================
-  
-  // Add spacing before acknowledgement
-  yPos += 8;
-  
-  // Acknowledgement box
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.5);
-  doc.rect(margin, yPos, pageWidth - 2 * margin, 35, 'S');
-  
-  // Acknowledgement title
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(17, 17, 17);
-  doc.text('Patient Acknowledgement', margin + 5, yPos + 7);
-  
-  // Acknowledgement text
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(75, 85, 99);
-  const ackText = 'I acknowledge that I have received and reviewed my test results. I understand the findings and have been informed about any necessary follow-up actions.';
-  const ackLines = doc.splitTextToSize(ackText, pageWidth - 2 * margin - 10);
-  doc.text(ackLines, margin + 5, yPos + 13);
-  
-  // Signature line and date
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(102, 102, 102);
-  
-  // Signature line
-  doc.setDrawColor(150, 150, 150);
-  doc.line(margin + 10, yPos + 28, margin + 70, yPos + 28);
-  doc.text('Patient Signature', margin + 10, yPos + 32);
-  
-  // Date line
-  doc.line(pageWidth - margin - 60, yPos + 28, pageWidth - margin - 10, yPos + 28);
-  doc.text('Date', pageWidth - margin - 60, yPos + 32);
-  
-  yPos += 40;
   
   // ========================================
   // FOOTER NOTE - Source Reference
