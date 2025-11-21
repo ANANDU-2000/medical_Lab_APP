@@ -1,13 +1,36 @@
 import React, { useState } from 'react';
-import { Download, Upload, Database, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Download, Upload, Database, AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { downloadDataBackup, uploadDataBackup } from '../../utils/storageService';
+import { initializeSeedData } from '../../features/shared/dataService';
 import toast from 'react-hot-toast';
 import './DataSync.css';
 
 const DataSync = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [importResult, setImportResult] = useState(null);
+
+  const handleForceSyncDatabase = async () => {
+    if (!window.confirm('This will reinitialize the database with all test master data and profiles. Continue?')) {
+      return;
+    }
+    
+    setIsSyncing(true);
+    try {
+      console.log('Force syncing local database...');
+      initializeSeedData();
+      toast.success('Database synchronized successfully! Reloading...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error) {
+      console.error('Sync failed:', error);
+      toast.error('Failed to sync database: ' + error.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -76,6 +99,35 @@ const DataSync = () => {
       </div>
 
       <div className="sync-actions">
+        {/* Force Sync Database Button */}
+        <div className="action-card" style={{gridColumn: '1 / -1', background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: 'white'}}>
+          <div className="action-icon" style={{background: 'rgba(255,255,255,0.2)'}}>
+            <RefreshCw size={32} />
+          </div>
+          <div className="action-content">
+            <h3 style={{color: 'white'}}>Force Sync Database (Fix "No Tests Available")</h3>
+            <p style={{color: 'rgba(255,255,255,0.9)'}}>If you see "No tests available" error, click this to reinitialize all test master data and profiles from local storage</p>
+            <button 
+              onClick={handleForceSyncDatabase} 
+              disabled={isSyncing}
+              className="btn btn-primary"
+              style={{background: 'white', color: '#2563EB', border: 'none'}}
+            >
+              {isSyncing ? (
+                <>
+                  <span className="spinner"></span>
+                  Syncing Database...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={18} />
+                  Sync Database Now
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        
         {/* Export Button */}
         <div className="action-card">
           <div className="action-icon export">

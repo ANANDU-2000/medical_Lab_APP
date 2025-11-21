@@ -19,7 +19,7 @@ import {
   Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getVisits, getPatients, getProfileById, markPDFGenerated, markInvoiceGenerated, getVisitById, deletePatient, subscribeToPatients, subscribeToVisits } from '../../services/firestoreService';
+import { getVisits, getPatients, getProfileById, markPDFGenerated, markInvoiceGenerated, getVisitById, deletePatient } from '../../features/shared/dataService';
 import { downloadReportPDF } from '../../utils/pdfGenerator';
 import { getTechnicians } from '../../services/authService';
 import Card from '../../components/ui/Card';
@@ -92,28 +92,37 @@ const Patients = () => {
     }
   ];
 
-  // Load visits and patients from Firestore with real-time sync
+  // Load visits and patients from localStorage
   useEffect(() => {
     loadData();
     
-    // Subscribe to real-time updates
-    const unsubscribePatients = subscribeToPatients((updatedPatients) => {
-      setPatients(updatedPatients);
-    });
+    // Listen for data updates from other tabs/windows
+    const handleStorageChange = (e) => {
+      if (e.key === 'medlab_visits' || e.key === 'medlab_patients') {
+        loadData();
+      }
+    };
     
-    const unsubscribeVisits = subscribeToVisits((updatedVisits) => {
-      setVisits(updatedVisits);
-    });
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events from same tab
+    const handleDataUpdate = () => {
+      loadData();
+    };
+    
+    window.addEventListener('dataUpdated', handleDataUpdate);
     
     return () => {
-      unsubscribePatients();
-      unsubscribeVisits();
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('dataUpdated', handleDataUpdate);
     };
   }, []);
 
-  const loadData = async () => {
-    const allVisits = await getVisits();
-    const allPatients = await getPatients();
+  const loadData = () => {
+    const allVisits = getVisits();
+    const allPatients = getPatients();
+    console.log('Loaded patients:', allPatients.length);
+    console.log('Loaded visits:', allVisits.length);
     setVisits(allVisits);
     setPatients(allPatients);
   };
@@ -266,29 +275,34 @@ const Patients = () => {
                   <h3>Invoice Details:</h3>
                   <div class="detail-row"><strong>Invoice No:</strong> <span>${visit.visitId}</span></div>
                   <div class="detail-row"><strong>Date:</strong> <span>${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
-                  <div class="detail-row"><strong>Time:</strong> <span>${new Date().toLocaleTimeString('en-IN')}</span></div>
+                  <div class="detail-row"><strong>Collected On:</strong> <span>${visit.collectedAt ? new Date(visit.collectedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}</span></div>
+                  <div class="detail-row"><strong>Received On:</strong> <span>${visit.receivedAt ? new Date(visit.receivedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}</span></div>
+                  <div class="detail-row"><strong>Reported On:</strong> <span>${visit.reportedAt ? new Date(visit.reportedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}</span></div>
                 </div>
               </div>
               
               <table class="items-table">
                 <thead>
                   <tr>
-                    <th>Test Description</th>
+                    <th>Test Name</th>
                     <th style="text-align: right;">Amount (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td><strong>${profile?.name || 'Test Profile'}</strong></td>
-                    <td style="text-align: right;">₹${profile?.price || profile?.packagePrice || 0}</td>
-                  </tr>
+                  ${visit.tests.map(test => `
+                    <tr>
+                      <td>${test.name || test.name_snapshot}</td>
+                      <td style="text-align: right;">₹${test.price || 0}</td>
+                    </tr>
+                  `).join('')}
                 </tbody>
+                <tfoot>
+                  <tr style="border-top: 2px solid #000; font-weight: bold;">
+                    <td style="text-align: right; padding-top: 10px;">Total:</td>
+                    <td style="text-align: right; padding-top: 10px;">₹${visit.finalAmount || 0}</td>
+                  </tr>
+                </tfoot>
               </table>
-              
-              <div class="total-section">
-                <h2>Total Amount: ₹${profile?.price || profile?.packagePrice || 0}</h2>
-                <p style="color: #059669; font-weight: bold; margin-top: 10px;">✓ PAID</p>
-              </div>
               
               <div class="footer">
                 <p>Thank you for choosing HEALit Med Laboratories</p>

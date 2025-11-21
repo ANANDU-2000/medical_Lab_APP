@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Plus, X, Edit2, Trash2, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getProfiles, addPatient, createVisit, getSettings } from '../../services/firestoreService';
+import { getProfiles, addPatient, createVisit, getSettings } from '../../features/shared/dataService';
 import { getCurrentUser } from '../../services/authService';
 import { useAuthStore } from '../../store';
 import Button from '../../components/ui/Button';
@@ -26,7 +26,7 @@ const AddPatientPage = () => {
   
   // Profile and test state
   const [profiles, setProfiles] = useState([]);
-  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [selectedProfiles, setSelectedProfiles] = useState([]); // Changed to array for multiple profiles
   const [tests, setTests] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [discount, setDiscount] = useState(0);
@@ -37,17 +37,25 @@ const AddPatientPage = () => {
   
   // Load profiles and settings on mount
   useEffect(() => {
-    const loadInitialData = async () => {
+    const loadInitialData = () => {
       try {
-        const [profilesData, settingsData] = await Promise.all([
-          getProfiles(),
-          getSettings()
-        ]);
+        const profilesData = getProfiles();
+        const settingsData = getSettings();
+        
+        console.log('Loaded profiles:', profilesData);
+        console.log('Profile count:', profilesData.length);
+        if (profilesData.length > 0) {
+          console.log('First profile:', profilesData[0]);
+          console.log('First profile tests:', profilesData[0].tests);
+        } else {
+          console.warn('⚠️ No profiles loaded!');
+          toast.error('No test profiles found. Please add profiles in Settings.');
+        }
         setProfiles(profilesData);
         setSettings(settingsData);
       } catch (error) {
         console.error('Error loading data:', error);
-        toast.error('Failed to load profiles');
+        toast.error('Failed to load profiles: ' + error.message);
       } finally {
         setLoading(false);
       }
@@ -68,19 +76,34 @@ const AddPatientPage = () => {
     return acc;
   }, []);
   
-  // Load tests when profile selected
+  // Load tests when profiles selected
   useEffect(() => {
-    if (selectedProfile) {
-      const profileTests = selectedProfile.tests?.map((test, idx) => ({
-        ...test,
-        id: test.testId || `temp_${idx}`,
-        selected: true
-      })) || [];
-      setTests(profileTests);
+    if (selectedProfiles.length > 0) {
+      // Combine tests from all selected profiles
+      const allTests = [];
+      const testMap = new Map(); // Use map to avoid duplicates
+      
+      selectedProfiles.forEach(profileId => {
+        const profile = profiles.find(p => p.profileId === profileId);
+        if (profile && profile.tests) {
+          profile.tests.forEach(test => {
+            if (!testMap.has(test.testId)) {
+              testMap.set(test.testId, {
+                ...test,
+                id: test.testId,
+                selected: true
+              });
+            }
+          });
+        }
+      });
+      
+      setTests(Array.from(testMap.values()));
+      console.log('Loaded tests from profiles:', Array.from(testMap.values()));
     } else {
       setTests([]);
     }
-  }, [selectedProfile]);
+  }, [selectedProfiles, profiles]);
   
   // Handle form input
   const handleInputChange = (e) => {
@@ -88,18 +111,17 @@ const AddPatientPage = () => {
     setPatientData(prev => ({ ...prev, [name]: value }));
   };
   
-  // Handle profile selection
-  const handleProfileSelect = (e) => {
-    const profileId = e.target.value;
-    const profile = profiles.find(p => p.profileId === profileId);
-    setSelectedProfile(profile || null);
-  };
-  
-  // Update test price
-  const handlePriceChange = (testId, newPrice) => {
-    setTests(prev => prev.map(t => 
-      t.id === testId ? { ...t, price: parseFloat(newPrice) || 0 } : t
-    ));
+  // Handle profile selection (multiple)
+  const handleProfileToggle = (profileId) => {
+    setSelectedProfiles(prev => {
+      if (prev.includes(profileId)) {
+        // Remove profile
+        return prev.filter(id => id !== profileId);
+      } else {
+        // Add profile
+        return [...prev, profileId];
+      }
+    });
   };
   
   // Toggle test selection
@@ -129,8 +151,58 @@ const AddPatientPage = () => {
     setTests(prev => [...prev, newTest]);
   };
   
-  // Add test from suggestion
+  // Multi-select mode state
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedSuggestions, setSelectedSuggestions] = useState([]);
+  
+  // Toggle suggestion selection for multi-select
+  const handleToggleSuggestion = (suggestedTest) => {
+    setSelectedSuggestions(prev => {
+      const exists = prev.find(t => t.testId === suggestedTest.testId);
+      if (exists) {
+        return prev.filter(t => t.testId !== suggestedTest.testId);
+      } else {
+        return [...prev, suggestedTest];
+      }
+    });
+  };
+  
+  // Add multiple tests from suggestions
+  const handleAddMultipleTests = () => {
+    if (selectedSuggestions.length === 0) {
+      toast.error('Please select at least one test');
+      return;
+    }
+    
+    let addedCount = 0;
+    selectedSuggestions.forEach(suggestedTest => {
+      // Check if test already exists
+      const exists = tests.find(t => t.testId === suggestedTest.testId);
+      if (!exists) {
+        const testToAdd = {
+          ...suggestedTest,
+          id: suggestedTest.testId || `temp_${Date.now()}`,
+          selected: true
+        };
+        setTests(prev => [...prev, testToAdd]);
+        addedCount++;
+      }
+    });
+    
+    setSearchTerm('');
+    setShowSuggestions(false);
+    setMultiSelectMode(false);
+    setSelectedSuggestions([]);
+    toast.success(`Added ${addedCount} test(s)`);
+  };
+  
+  // Add test from suggestion (single mode)
   const handleAddTestFromSuggestion = (suggestedTest) => {
+    if (multiSelectMode) {
+      handleToggleSuggestion(suggestedTest);
+      return;
+    }
+    
     // Check if test already exists
     const exists = tests.find(t => t.testId === suggestedTest.testId);
     if (exists) {
@@ -207,6 +279,13 @@ const AddPatientPage = () => {
   // Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    console.log('=== SUBMIT DEBUG ===');
+    console.log('Selected profiles:', selectedProfiles);
+    console.log('All tests:', tests);
+    console.log('Selected tests:', selectedTests);
+    console.log('Selected tests count:', selectedTests.length);
+    
     if (!validateForm()) return;
     
     // Check if user is authenticated
@@ -218,28 +297,44 @@ const AddPatientPage = () => {
     
     try {
       // Add patient
-      const patient = await addPatient({
+      const patient = addPatient({
         ...patientData,
         age: parseInt(patientData.age),
         addedBy: currentUser.userId,
         addedByRole: role
       });
       
+      console.log('Patient created:', patient);
+      
       // Create visit with selected tests
       const visitData = {
         patientId: patient.patientId,
-        profileId: selectedProfile?.profileId || null,
-        profileName: selectedProfile?.name || 'Custom',
-        tests: selectedTests.map(({ selected, id, isNew, ...test }) => test),
+        profileIds: selectedProfiles, // Store multiple profile IDs
+        profileNames: selectedProfiles.map(pid => {
+          const p = profiles.find(pr => pr.profileId === pid);
+          return p?.name || '';
+        }).filter(Boolean).join(', ') || 'Custom',
+        tests: selectedTests.map(({ selected, id, isNew, ...test }) => ({
+          testId: test.testId,
+          name: test.name,
+          description: test.description || test.name,
+          unit: test.unit || '',
+          bioReference: test.bioReference || '',
+          price: test.price || 0
+        })),
         subtotal,
         discount: discountAmount,
         finalAmount,
-        // REMOVED: status - createVisit() sets this automatically to 'tests_selected'
         addedBy: currentUser.userId,
         addedByRole: role
       };
       
-      const visit = await createVisit(visitData);
+      console.log('Visit data being created:', visitData);
+      console.log('Tests in visit:', visitData.tests);
+      
+      const visit = createVisit(visitData);
+      console.log('Visit created:', visit);
+      
       toast.success('Patient registered successfully!');
       navigate(`/sample-times/${visit.visitId}`);
     } catch (error) {
@@ -266,15 +361,34 @@ const AddPatientPage = () => {
           <h3>Patient Details</h3>
           
           <div className="form-field">
-            <label>Profile</label>
-            <select value={selectedProfile?.profileId || ''} onChange={handleProfileSelect}>
-              <option value="">Select Profile</option>
-              {profiles.filter(p => p.active).map(p => (
-                <option key={p.profileId} value={p.profileId}>
-                  {p.name} (₹{p.packagePrice})
-                </option>
-              ))}
-            </select>
+            <label>Test Profiles (Select Multiple)</label>
+            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '8px' }}>
+              {profiles.filter(p => p.active).length === 0 ? (
+                <p style={{ color: '#64748B', fontSize: '0.875rem', padding: '8px' }}>No profiles available</p>
+              ) : (
+                profiles.filter(p => p.active).map(p => (
+                  <label key={p.profileId} style={{ display: 'flex', alignItems: 'center', padding: '6px', cursor: 'pointer', borderRadius: '4px', marginBottom: '4px' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F8FAFC'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                    <input
+                      type="checkbox"
+                      checked={selectedProfiles.includes(p.profileId)}
+                      onChange={() => handleProfileToggle(p.profileId)}
+                      style={{ marginRight: '8px', cursor: 'pointer', accentColor: '#2563EB' }}
+                    />
+                    <span style={{ fontSize: '0.875rem', color: '#0F172A' }}>
+                      {p.name}
+                      <span style={{ color: '#64748B', marginLeft: '8px' }}>({p.tests?.length || 0} tests)</span>
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+            {selectedProfiles.length > 0 && (
+              <p style={{ fontSize: '0.75rem', color: '#2563EB', marginTop: '6px' }}>
+                ✓ {selectedProfiles.length} profile(s) selected
+              </p>
+            )}
           </div>
           
           <div className="form-field">
@@ -408,24 +522,63 @@ const AddPatientPage = () => {
               {/* Autocomplete Suggestions */}
               {showSuggestions && testSuggestions.length > 0 && (
                 <div className="suggestions-dropdown">
-                  {testSuggestions.map((suggestion, index) => (
-                    <div
-                      key={suggestion.testId}
-                      className={`suggestion-item ${index === activeSuggestionIndex ? 'active' : ''}`}
-                      onClick={() => handleAddTestFromSuggestion(suggestion)}
+                  {/* Multi-select toggle button */}
+                  <div className="suggestions-header">
+                    <button
+                      className={`multi-select-toggle ${multiSelectMode ? 'active' : ''}`}
+                      onClick={() => {
+                        setMultiSelectMode(!multiSelectMode);
+                        setSelectedSuggestions([]);
+                      }}
+                      type="button"
                     >
-                      <div className="suggestion-main">
-                        <strong>{suggestion.name}</strong>
-                        <span className="suggestion-price">₹{suggestion.price}</span>
-                      </div>
-                      <div className="suggestion-meta">
-                        {suggestion.unit && <span className="unit">{suggestion.unit}</span>}
-                        {suggestion.bioReference && (
-                          <span className="bio-ref">{suggestion.bioReference}</span>
+                      {multiSelectMode ? '✓ Multi-Select ON' : 'Multi-Select OFF'}
+                    </button>
+                    {multiSelectMode && selectedSuggestions.length > 0 && (
+                      <button
+                        className="add-selected-btn"
+                        onClick={handleAddMultipleTests}
+                        type="button"
+                      >
+                        Add {selectedSuggestions.length} Test(s)
+                      </button>
+                    )}
+                  </div>
+                  
+                  {testSuggestions.map((suggestion, index) => {
+                    const isSelected = selectedSuggestions.find(t => t.testId === suggestion.testId);
+                    return (
+                      <div
+                        key={suggestion.testId}
+                        className={`suggestion-item ${index === activeSuggestionIndex ? 'active' : ''} ${isSelected ? 'selected' : ''}`}
+                        onClick={() => handleAddTestFromSuggestion(suggestion)}
+                      >
+                        {multiSelectMode && (
+                          <input
+                            type="checkbox"
+                            checked={!!isSelected}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleToggleSuggestion(suggestion);
+                            }}
+                            className="suggestion-checkbox"
+                          />
                         )}
+                        <div className="suggestion-content">
+                          <div className="suggestion-main">
+                            <strong>{suggestion.name}</strong>
+                            <span className="suggestion-price">₹{suggestion.price}</span>
+                          </div>
+                          <div className="suggestion-meta">
+                            {suggestion.unit && <span className="unit">{suggestion.unit}</span>}
+                            {suggestion.bioReference && (
+                              <span className="bio-ref">{suggestion.bioReference}</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -440,19 +593,18 @@ const AddPatientPage = () => {
               <thead>
                 <tr>
                   <th style={{ width: '40px' }}>✓</th>
-                  <th style={{ width: '35%' }}>Test Description</th>
-                  <th style={{ width: '15%' }}>Value</th>
-                  <th style={{ width: '20%' }}>Bio Reference</th>
-                  <th style={{ width: '12%' }}>Unit</th>
-                  <th style={{ width: '12%' }}>Price (₹)</th>
+                  <th style={{ width: '40%' }}>Test Description</th>
+                  <th style={{ width: '20%' }}>Value</th>
+                  <th style={{ width: '25%' }}>Bio Reference</th>
+                  <th style={{ width: '15%' }}>Unit</th>
                   <th style={{ width: '60px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTests.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="empty-state">
-                      {selectedProfile ? 'No tests in this profile' : 'Select a profile or add tests manually'}
+                    <td colSpan="6" className="empty-state">
+                      {selectedProfiles.length > 0 ? 'No tests in selected profiles' : 'Select profiles or add tests manually'}
                     </td>
                   </tr>
                 ) : (
@@ -506,16 +658,6 @@ const AddPatientPage = () => {
                           onChange={(e) => handleTestFieldChange(test.id, 'unit', e.target.value)}
                           placeholder="Unit"
                           className="inline-input"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={test.price}
-                          onChange={(e) => handlePriceChange(test.id, e.target.value)}
-                          className="price-input"
-                          min="0"
-                          step="0.01"
                         />
                       </td>
                       <td>

@@ -4,7 +4,7 @@ import { ArrowLeft, FileText, Download, Share2, Printer, Mail, User, Phone, MapP
 import toast from 'react-hot-toast';
 import { getProfileTemplate } from '../../features/profile-manager/profileTemplates';
 import { downloadReportPDF, printReportPDF, shareViaWhatsApp, shareViaEmail } from '../../utils/pdfGenerator';
-import { getVisitById, getPatientById, getProfileById, updatePatient, markPDFGenerated, markInvoiceGenerated } from '../../services/firestoreService';
+import { getVisitById, getPatientById, getProfileById, updatePatient, markPDFGenerated, markInvoiceGenerated } from '../../features/shared/dataService';
 import { getTechnicians } from '../../services/authService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -172,29 +172,34 @@ const PatientDetails = () => {
                   <h3>Invoice Details:</h3>
                   <div class="detail-row"><strong>Invoice No:</strong> <span>${visit.visitId}</span></div>
                   <div class="detail-row"><strong>Date:</strong> <span>${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
-                  <div class="detail-row"><strong>Time:</strong> <span>${new Date().toLocaleTimeString('en-IN')}</span></div>
+                  <div class="detail-row"><strong>Collected On:</strong> <span>${visit.collectedAt ? new Date(visit.collectedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}</span></div>
+                  <div class="detail-row"><strong>Received On:</strong> <span>${visit.receivedAt ? new Date(visit.receivedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}</span></div>
+                  <div class="detail-row"><strong>Reported On:</strong> <span>${visit.reportedAt ? new Date(visit.reportedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}</span></div>
                 </div>
               </div>
               
               <table class="items-table">
                 <thead>
                   <tr>
-                    <th>Test Description</th>
+                    <th>Test Name</th>
                     <th style="text-align: right;">Amount (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td><strong>${profile?.name || 'Test Profile'}</strong></td>
-                    <td style="text-align: right;">₹${profile?.price || profile?.packagePrice || 0}</td>
-                  </tr>
+                  ${visit.tests.map(test => `
+                    <tr>
+                      <td>${test.name || test.name_snapshot}</td>
+                      <td style="text-align: right;">₹${test.price || 0}</td>
+                    </tr>
+                  `).join('')}
                 </tbody>
+                <tfoot>
+                  <tr style="border-top: 2px solid #000; font-weight: bold;">
+                    <td style="text-align: right; padding-top: 10px;">Total:</td>
+                    <td style="text-align: right; padding-top: 10px;">₹${visit.finalAmount || 0}</td>
+                  </tr>
+                </tfoot>
               </table>
-              
-              <div class="total-section">
-                <h2>Total Amount: ₹${profile?.price || profile?.packagePrice || 0}</h2>
-                <p style="color: #059669; font-weight: bold; margin-top: 10px;">✓ PAID</p>
-              </div>
               
               <div class="footer">
                 <p>Thank you for choosing HEALit Med Laboratories</p>

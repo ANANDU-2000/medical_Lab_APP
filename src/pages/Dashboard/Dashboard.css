@@ -1,6 +1,6 @@
-/* Dashboard - Pure White Background */
+/* Dashboard - Colorful Background */
 .dashboard {
-  background: #FFFFFF;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: calc(100vh - 60px);
   padding: var(--space-5);
 }
@@ -36,13 +36,14 @@
 .dashboard-header h1 {
   font-size: 1.875rem;
   font-weight: 700;
-  color: #000000;
+  color: #FFFFFF;
   margin: 0 0 var(--space-1) 0;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .dashboard-header p {
   font-size: 1rem;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.9);
   margin: 0;
 }
 
@@ -91,8 +92,8 @@
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  border: 2px solid #000000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 2px solid transparent;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   min-height: 120px;
   display: flex;
   flex-direction: column;
@@ -103,8 +104,8 @@
 .action-card:hover {
   transform: translateY(-4px) scale(1.02);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  background: #F5F5F5;
-  border-color: #000000;
+  background: #FFFFFF;
+  border-color: #2563EB;
 }
 
 .action-icon {
@@ -126,7 +127,7 @@
 .action-card h3 {
   font-size: 0.875rem;
   font-weight: 700;
-  color: #000000;
+  color: #1E293B;
   margin: 0 0 4px 0;
 }
 
@@ -148,13 +149,13 @@
 }
 
 .metric-card {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
   border-radius: 16px;
   padding: var(--space-4);
   display: flex;
   gap: var(--space-3);
   align-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
   transition: all 0.3s ease;
   border: none;
   min-height: 100px;
@@ -162,7 +163,7 @@
 
 .metric-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5);
 }
 
 .metric-icon {

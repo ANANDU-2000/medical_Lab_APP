@@ -107,9 +107,14 @@ export const generateReportPDF = async (visitData) => {
   };
 
   const addRightRow = (label, value) => {
-    const combined = `${label} ${value || '—'}`;
+    // Single line format for compact display
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(label, rightX, rightY);
+    
     doc.setFont('helvetica', 'normal');
-    doc.text(combined, rightX, rightY);
+    const labelWidth = doc.getTextWidth(label);
+    doc.text(value || '—', rightX + labelWidth + 1, rightY);
     rightY += lineHeight;
   };
 
@@ -126,13 +131,15 @@ export const generateReportPDF = async (visitData) => {
   
   addLeftRow('Referred By:', visitData.patient.referredBy || 'Self');
 
-  // RIGHT COLUMN - Test Details
-  addRightRow('Test Profile:', visitData.profile.name);
+  // RIGHT COLUMN - Test Details (Compact format)
+  doc.setFontSize(8.5);
+  
+  addRightRow('Test Profile:', visitData.profileNames || visitData.profile?.name || 'Custom');
   addRightRow('Collected On:', visitData.collectedAt ? formatDateTime(visitData.collectedAt) : '—');
   addRightRow('Received On:', visitData.receivedAt ? formatDateTime(visitData.receivedAt) : '—');
   addRightRow('Reported On:', visitData.reportedAt ? formatDateTime(visitData.reportedAt) : '—');
 
-  yPos = Math.max(leftY, rightY) + 12;
+  yPos = Math.max(leftY, rightY) + 10;
 
   // ========================================
   // GROUP TESTS BY CATEGORY (if available)
@@ -149,16 +156,19 @@ export const generateReportPDF = async (visitData) => {
     
     // DEBUG: Log test data
     console.log('PDF Table - Category:', category);
-    console.log('PDF Table - First Test Fields:', tests[0] ? Object.keys(tests[0]) : []);
-    console.log('PDF Table - First Test Data:', tests[0]);
+    console.log('PDF Table - Tests count:', tests.length);
     
     // Smart pagination: Calculate if table fits on current page
-    const estimatedTableHeight = (tests.length * 7) + 20; // Rough estimate (7mm per row + header)
-    const spaceLeft = pageHeight - yPos - 60; // Reserve 60mm for footer/signatures
+    // Reserve 90mm for signatures and footer to prevent ANY overlap
+    const estimatedTableHeight = (tests.length * 6) + 18;
+    const signatureReservedSpace = 90; // Increased to 90mm for safety
+    const spaceLeft = pageHeight - yPos - signatureReservedSpace;
     
-    // Strategy: Try to fit entire report on one page if ≤20 tests (compact mode)
-    // Otherwise allow multi-page with clean breaks
-    const useCompactMode = tests.length <= 20;
+    // Check if we need a new page BEFORE starting table
+    if (estimatedTableHeight > spaceLeft && yPos > 70) {
+      doc.addPage();
+      yPos = margin + 10;
+    }
     
     const tableData = tests.map(test => {
       // Use fallback chain for all fields
@@ -194,39 +204,48 @@ export const generateReportPDF = async (visitData) => {
       theme: 'striped',
       styles: {
         font: 'helvetica',
-        fontSize: 10,
-        cellPadding: 4,
+        fontSize: 9,
+        cellPadding: 3,
         textColor: '#111',
         lineColor: [30, 58, 138],
         lineWidth: 0.2,
         overflow: 'linebreak',
-        valign: 'middle'
+        valign: 'middle',
+        minCellHeight: 5.5
       },
       headStyles: {
         fillColor: [30, 58, 138],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: useCompactMode ? 9 : 10,
+        fontSize: 9,
         halign: 'center',
         valign: 'middle',
-        cellPadding: 5
+        cellPadding: 3.5
       },
       columnStyles: {
-        0: { cellWidth: 70, halign: 'left', fontStyle: 'bold', fontSize: 10 },
-        1: { cellWidth: 30, halign: 'center', fontStyle: 'normal' },
-        2: { cellWidth: 25, halign: 'center', fontSize: 9 },
-        3: { cellWidth: 55, halign: 'left', fontSize: 8.5, whiteSpace: 'pre-wrap' }
+        0: { cellWidth: 70, halign: 'left', fontStyle: 'bold', fontSize: 9 },
+        1: { cellWidth: 30, halign: 'center', fontStyle: 'normal', fontSize: 9 },
+        2: { cellWidth: 25, halign: 'center', fontSize: 8.5 },
+        3: { cellWidth: 55, halign: 'left', fontSize: 8, whiteSpace: 'pre-wrap' }
       },
       alternateRowStyles: {
-        fillColor: [240, 248, 255] // Light blue striped rows
+        fillColor: [240, 248, 255]
       },
       margin: { left: margin, right: margin },
       pageBreak: 'auto',
       rowPageBreak: 'avoid',
-      tableWidth: 'auto'
+      tableWidth: 'auto',
+      didDrawPage: function(data) {
+        const pageBottom = doc.internal.pageSize.getHeight();
+        const currentY = data.cursor.y;
+        // Force new page if less than 90mm space remaining
+        if (pageBottom - currentY < signatureReservedSpace) {
+          return false; // Stop drawing on this page
+        }
+      }
     });
 
-    yPos = doc.lastAutoTable.finalY + 5;
+    yPos = doc.lastAutoTable.finalY + 8;
   });
 
   // ========================================
@@ -234,15 +253,16 @@ export const generateReportPDF = async (visitData) => {
   // ========================================
   
   // Calculate if we need a new page for signatures
-  const signatureHeight = 35;
+  const signatureHeight = 45;
   const footerNoteHeight = 15;
   const requiredSpace = signatureHeight + footerNoteHeight;
   
-  if (yPos > pageHeight - requiredSpace - 10) {
+  // If less than required space, ALWAYS add new page
+  if (yPos > pageHeight - requiredSpace - 20) {
     doc.addPage();
-    yPos = margin + 10;
+    yPos = margin + 15;
   } else {
-    yPos += 10;
+    yPos += 15;
   }
   
   // Thank you note
@@ -260,49 +280,71 @@ export const generateReportPDF = async (visitData) => {
   // LEFT SIGNATURE - Lab Technician
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setTextColor('#111'); // COLORS.text
+  doc.setTextColor(17, 17, 17);
   doc.text('Billed By:', leftSigX, yPos);
+  
+  // Add white background rectangle for signature visibility
+  doc.setFillColor(255, 255, 255);
+  doc.rect(leftSigX, yPos + 2, 32, 13, 'F');
+  
+  // Add border for better visibility
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.rect(leftSigX, yPos + 2, 32, 13, 'S');
   
   // Add technician signature image (convert to base64)
   try {
     const technicianSignatureBase64 = await imageToBase64(SIGNATURE_PATHS.rakhi);
-    doc.addImage(technicianSignatureBase64, 'JPEG', leftSigX, yPos + 2, 30, 12);
+    doc.addImage(technicianSignatureBase64, 'JPEG', leftSigX + 1, yPos + 3, 30, 11);
   } catch (error) {
     console.error('Technician signature failed:', error);
-    doc.line(leftSigX, yPos + 8, leftSigX + 40, yPos + 8);
+    doc.setDrawColor(100, 100, 100);
+    doc.line(leftSigX + 1, yPos + 10, leftSigX + 31, yPos + 10);
   }
   
   // Name
   doc.setFontSize(8);
-  doc.text('Rakhi T.R', leftSigX, yPos + 16);
+  doc.setTextColor(17, 17, 17);
+  doc.text('Rakhi T.R', leftSigX, yPos + 17);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.setTextColor('#666');
-  doc.text('DMLT', leftSigX, yPos + 20);
+  doc.setTextColor(102, 102, 102);
+  doc.text('DMLT', leftSigX, yPos + 21);
   
   // RIGHT SIGNATURE - Authorized Signatory
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setTextColor('#111'); // COLORS.text
+  doc.setTextColor(17, 17, 17);
   doc.text('Authorized Signatory:', rightSigX, yPos);
+  
+  // Add white background rectangle
+  doc.setFillColor(255, 255, 255);
+  doc.rect(rightSigX, yPos + 2, 32, 13, 'F');
+  
+  // Add border
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.rect(rightSigX, yPos + 2, 32, 13, 'S');
   
   // Add authorized signature image (convert to base64)
   try {
     const authSignatureBase64 = await imageToBase64(SIGNATURE_PATHS.aparna);
-    doc.addImage(authSignatureBase64, 'PNG', rightSigX, yPos + 2, 30, 12);
+    doc.addImage(authSignatureBase64, 'PNG', rightSigX + 1, yPos + 3, 30, 11);
   } catch (error) {
     console.error('Auth signature failed:', error);
-    doc.line(rightSigX, yPos + 8, rightSigX + 45, yPos + 8);
+    doc.setDrawColor(100, 100, 100);
+    doc.line(rightSigX + 1, yPos + 10, rightSigX + 31, yPos + 10);
   }
   
   doc.setFontSize(8);
-  doc.text('Aparna A.T', rightSigX, yPos + 16);
+  doc.setTextColor(17, 17, 17);
+  doc.text('Aparna A.T', rightSigX, yPos + 17);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.setTextColor('#666');
-  doc.text('Incharge', rightSigX, yPos + 20);
+  doc.setTextColor(102, 102, 102);
+  doc.text('Incharge', rightSigX, yPos + 21);
   
-  yPos += 25;
+  yPos += 28;
   
   // ========================================
   // FOOTER NOTE - Source Reference

@@ -18,7 +18,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuthStore } from '../../store';
-import { getVisits, getPatients } from '../../services/firestoreService';
+import { getVisits, getPatients } from '../../features/shared/dataService';
 import { LOGO_PATHS } from '../../utils/assetPath';
 import './Layout.css';
 

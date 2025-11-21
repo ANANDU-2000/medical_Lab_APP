@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, FileText, Receipt, Check, Loader, Download, Printer, Share2, Mail, AlertCircle, TrendingUp, TrendingDown, MessageCircle, TestTube2, Plus, Search, X, Home } from 'lucide-react';
-import { getVisitById, updateVisitResults, getSettings, updateVisit, getPatientById, getProfileById, getTestsMaster } from '../../services/firestoreService';
+import { getVisitById, updateVisit, getPatientById, getProfileById, getTestsMaster } from '../../features/shared/dataService';
+import { getSettings } from '../../services/settingsService';
 import { useAuthStore } from '../../store';
 import { getCurrentUser, getUsers } from '../../services/authService';
 import { downloadReportPDF, printReportPDF, shareViaWhatsApp, shareViaEmail } from '../../utils/pdfGenerator';
@@ -29,10 +30,35 @@ const ResultEntryPage = () => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [showAddTestModal, setShowAddTestModal] = useState(false);
   const [testSearchQuery, setTestSearchQuery] = useState('');
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedTestsToAdd, setSelectedTestsToAdd] = useState([]);
+  const [availableTests, setAvailableTests] = useState([]);
+  const [loadingTests, setLoadingTests] = useState(false);
   const saveTimeoutRef = useRef(null);
   
   const canEditReportedTime = role === 'admin' && settings.allowManualReportedTime;
   const canEditDiscount = role === 'admin' || settings.allowStaffEditDiscount;
+  
+  // Load available tests when modal opens or search query changes
+  useEffect(() => {
+    if (!showAddTestModal) return;
+    
+    const loadTests = () => {
+      setLoadingTests(true);
+      try {
+        const tests = getTestsMaster(testSearchQuery);
+        setAvailableTests(tests);
+      } catch (error) {
+        console.error('Error loading tests:', error);
+        toast.error('Failed to load tests');
+        setAvailableTests([]);
+      } finally {
+        setLoadingTests(false);
+      }
+    };
+    
+    loadTests();
+  }, [showAddTestModal, testSearchQuery]);
   
   // Get all active technicians (users with role staff/admin)
   const allUsers = getUsers();
@@ -76,7 +102,7 @@ const ResultEntryPage = () => {
       visitData.tests.forEach(test => {
         initialResults[test.testId] = {
           value: test.value || '',
-          status: test.status || 'NORMAL'
+          status: test.status || 'normal'
         };
       });
     }
@@ -102,7 +128,7 @@ const ResultEntryPage = () => {
   }, [visitId]);
 
   // Save results (defined before useEffect that uses it)
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(() => {
     if (!visit) return;
     
     setSaveStatus('saving');
@@ -171,7 +197,7 @@ const ResultEntryPage = () => {
   // Handle result input change with validation
   const handleResultChange = (testId, value) => {
     const test = visit.tests.find(t => t.testId === testId);
-    let status = 'NORMAL';
+    let status = 'normal';
     
     // Only validate and calculate status for numeric input types
     if (test.inputType_snapshot === 'number') {
@@ -201,18 +227,18 @@ const ResultEntryPage = () => {
         const refHigh = parseFloat(test.refHigh_snapshot);
         const refLow = parseFloat(test.refLow_snapshot);
         
-        // Determine status: HIGH, LOW, or NORMAL
+        // Determine status: high, low, or normal
         if (!isNaN(refHigh) && numValue > refHigh) {
-          status = 'HIGH';
+          status = 'high';
         } else if (!isNaN(refLow) && numValue < refLow) {
-          status = 'LOW';
+          status = 'low';
         } else {
-          status = 'NORMAL';
+          status = 'normal';
         }
       }
     } else if (test.inputType_snapshot === 'text') {
-      // Text input: no status calculation, always NORMAL
-      status = 'NORMAL';
+      // Text input: no status calculation, always normal
+      status = 'normal';
       
       // Validate text length
       if (value.length > 200) {
@@ -220,11 +246,11 @@ const ResultEntryPage = () => {
         return;
       }
     } else if (test.inputType_snapshot === 'select') {
-      // Dropdown/select: no status calculation, always NORMAL
-      status = 'NORMAL';
+      // Dropdown/select: no status calculation, always normal
+      status = 'normal';
     } else {
-      // Default: NORMAL for any other type
-      status = 'NORMAL';
+      // Default: normal for any other type
+      status = 'normal';
     }
     
     // Update results with value and calculated status
@@ -303,8 +329,74 @@ const ResultEntryPage = () => {
     }, 500);
   };
 
-  // Handle add test
+  // Toggle test selection for multi-select
+  const handleToggleTestSelection = (test) => {
+    setSelectedTestsToAdd(prev => {
+      const exists = prev.find(t => t.testId === test.testId);
+      if (exists) {
+        return prev.filter(t => t.testId !== test.testId);
+      } else {
+        return [...prev, test];
+      }
+    });
+  };
+  
+  // Add multiple tests
+  const handleAddMultipleTests = () => {
+    if (selectedTestsToAdd.length === 0) {
+      toast.error('Please select at least one test');
+      return;
+    }
+    
+    let addedCount = 0;
+    selectedTestsToAdd.forEach(test => {
+      // Check if test already exists
+      const exists = visit.tests.some(t => t.testId === test.testId);
+      if (!exists) {
+        setVisit(prev => {
+          const newTest = {
+            testId: test.testId,
+            name: test.name,
+            name_snapshot: test.name,
+            code_snapshot: test.code,
+            inputType_snapshot: test.inputType,
+            unit_snapshot: test.unit,
+            refLow_snapshot: test.refLow,
+            refHigh_snapshot: test.refHigh,
+            refText_snapshot: test.refText,
+            dropdownOptions_snapshot: test.dropdownOptions,
+            price_snapshot: test.price,
+            value: '',
+            status: 'normal'
+          };
+          
+          return { ...prev, tests: [...prev.tests, newTest] };
+        });
+        
+        // Initialize result for new test
+        setResults(prev => ({
+          ...prev,
+          [test.testId]: { value: '', status: 'normal' }
+        }));
+        
+        addedCount++;
+      }
+    });
+    
+    toast.success(`Added ${addedCount} test(s)`);
+    setShowAddTestModal(false);
+    setTestSearchQuery('');
+    setMultiSelectMode(false);
+    setSelectedTestsToAdd([]);
+  };
+
+  // Handle add test (single or multi-select mode)
   const handleAddTest = (test) => {
+    if (multiSelectMode) {
+      handleToggleTestSelection(test);
+      return;
+    }
+    
     if (!canEditResults) {
       toast.error('Cannot add tests - results are locked');
       return;
@@ -1046,11 +1138,19 @@ const ResultEntryPage = () => {
       
       {/* Add Test Modal */}
       {showAddTestModal && (
-        <div className="share-modal-overlay" onClick={() => setShowAddTestModal(false)}>
+        <div className="share-modal-overlay" onClick={() => {
+          setShowAddTestModal(false);
+          setMultiSelectMode(false);
+          setSelectedTestsToAdd([]);
+        }}>
           <div className="add-test-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Add Test</h3>
-              <button className="close-btn" onClick={() => setShowAddTestModal(false)}>
+              <h3>Add Test(s)</h3>
+              <button className="close-btn" onClick={() => {
+                setShowAddTestModal(false);
+                setMultiSelectMode(false);
+                setSelectedTestsToAdd([]);
+              }}>
                 <X size={20} />
               </button>
             </div>
@@ -1066,20 +1166,68 @@ const ResultEntryPage = () => {
               />
             </div>
             
-            <div className="test-list">
-              {getTestsMaster(testSearchQuery).map(test => (
-                <div
-                  key={test.testId}
-                  className="test-item"
-                  onClick={() => handleAddTest(test)}
+            {/* Multi-select toggle */}
+            <div className="modal-toolbar">
+              <button
+                className={`multi-select-toggle ${multiSelectMode ? 'active' : ''}`}
+                onClick={() => {
+                  setMultiSelectMode(!multiSelectMode);
+                  setSelectedTestsToAdd([]);
+                }}
+                type="button"
+              >
+                {multiSelectMode ? '✓ Multi-Select ON' : 'Multi-Select OFF'}
+              </button>
+              {multiSelectMode && selectedTestsToAdd.length > 0 && (
+                <button
+                  className="add-selected-btn"
+                  onClick={handleAddMultipleTests}
+                  type="button"
                 >
-                  <div className="test-info">
-                    <strong>{test.name}</strong>
-                    <span className="test-code">{test.code}</span>
-                  </div>
-                  <div className="test-price">₹{test.price}</div>
+                  Add {selectedTestsToAdd.length} Test(s)
+                </button>
+              )}
+            </div>
+            
+            <div className="test-list">
+              {loadingTests ? (
+                <div className="loading-state">
+                  <Loader size={24} className="spinning" />
+                  <p>Loading tests...</p>
                 </div>
-              ))}
+              ) : availableTests.length === 0 ? (
+                <div className="empty-state">
+                  <p>No tests available. Please add at least one test.</p>
+                </div>
+              ) : (
+                availableTests.map(test => {
+                  const isSelected = selectedTestsToAdd.find(t => t.testId === test.testId);
+                  return (
+                    <div
+                      key={test.testId}
+                      className={`test-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => handleAddTest(test)}
+                    >
+                      {multiSelectMode && (
+                        <input
+                          type="checkbox"
+                          checked={!!isSelected}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleToggleTestSelection(test);
+                          }}
+                          className="test-checkbox"
+                        />
+                      )}
+                      <div className="test-info">
+                        <strong>{test.name}</strong>
+                        <span className="test-code">{test.code}</span>
+                      </div>
+                      <div className="test-price">₹{test.price}</div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

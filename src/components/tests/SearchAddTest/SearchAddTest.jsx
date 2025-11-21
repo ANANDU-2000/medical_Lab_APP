@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus } from 'lucide-react';
-import { getTestsMaster } from '../../../services/firestoreService';
+import { getTestsMaster } from '../../../features/shared/dataService';
 import './SearchAddTest.css';
 
 const SearchAddTest = ({ onAddTest, onAddManual }) => {

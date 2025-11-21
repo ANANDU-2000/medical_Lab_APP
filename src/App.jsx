@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store';
-import { initializeFirestoreData } from './services/firestoreService';
+import { initializeSeedData } from './features/shared/dataService';
 import { initializeAuthData } from './services/authService';
 import { preloadCriticalImages } from './utils/assetPath';
 
@@ -56,12 +56,12 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   
-  // Initialize Firestore data on app load
+  // Initialize app on load
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        console.log('Initializing Firebase Firestore...');
-        await initializeFirestoreData();
+        console.log('Initializing app with localStorage...');
+        initializeSeedData();
         initializeAuthData();
         // Preload critical images for PDFs and UI
         preloadCriticalImages();
@@ -88,7 +88,7 @@ function App() {
       }}>
         <div>
           <div style={{ marginBottom: '10px' }}>🔄 Initializing HEALit Lab System...</div>
-          <div style={{ fontSize: '14px', color: '#666' }}>Syncing data from cloud database</div>
+          <div style={{ fontSize: '14px', color: '#666' }}>Loading local data</div>
         </div>
       </div>
     );

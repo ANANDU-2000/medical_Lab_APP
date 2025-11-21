@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, Lock, Bell, FileSignature, Save, Upload } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import { getCurrentUser, updateUser, changePassword } from '../../services/authService';
-import { getSettings } from '../../services/firestoreService';
+import { getSettings } from '../../services/settingsService';
 import Button from '../../components/ui/Button';
 import toast from 'react-hot-toast';
 import './StaffSettings.css';

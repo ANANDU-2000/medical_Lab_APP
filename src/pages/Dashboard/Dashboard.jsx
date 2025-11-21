@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import { getAdminDashboardData, getStaffDashboardData } from '../../services/dashboardService';
-import { getVisits } from '../../services/firestoreService';
+import { getVisits } from '../../features/shared/dataService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import './Dashboard.css';
@@ -91,14 +91,14 @@ const Dashboard = () => {
           <h2 className="section-title">Quick Actions</h2>
           <div className="quick-actions-grid">
             <div className="action-card" onClick={() => navigate('/patients/add-patient')}>
-              <div className="action-icon" style={{ background: '#000000' }}>
+              <div className="action-icon" style={{ background: '#2563EB' }}>
                 <Plus size={40} color="#FFFFFF" />
               </div>
               <h3>Add Patient</h3>
               <p>Register new</p>
             </div>
             <div className="action-card" onClick={() => navigate('/patients')}>
-              <div className="action-icon" style={{ background: '#059669' }}>
+              <div className="action-icon" style={{ background: '#10B981' }}>
                 <TestTube size={40} color="#FFFFFF" />
               </div>
               <h3>Pending Results</h3>
@@ -246,21 +246,21 @@ const Dashboard = () => {
             <h2 className="section-title">Quick Actions</h2>
             <div className="quick-actions-grid">
               <div className="action-card" onClick={() => navigate('/patients/add-patient')}>
-                <div className="action-icon" style={{ background: '#000000' }}>
+                <div className="action-icon" style={{ background: '#2563EB' }}>
                   <Plus size={28} />
                 </div>
                 <h3>Add New Patient</h3>
                 <p>Register a new patient</p>
               </div>
               <div className="action-card" onClick={() => navigate('/patients')}>
-                <div className="action-icon" style={{ background: '#000000' }}>
+                <div className="action-icon" style={{ background: '#10B981' }}>
                   <TestTube size={28} />
                 </div>
                 <h3>Pending Results</h3>
                 <p>Enter test results</p>
               </div>
               <div className="action-card" onClick={() => navigate('/patients')}>
-                <div className="action-icon" style={{ background: '#000000' }}>
+                <div className="action-icon" style={{ background: '#EF4444' }}>
                   <FileText size={28} />
                 </div>
                 <h3>Generate Report</h3>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, Check, AlertCircle, Copy, TestTube2, Timer, Droplet, User, FileText } from 'lucide-react';
-import { getVisitById, updateVisit, getPatientById, getProfileById } from '../../services/firestoreService';
+import { getVisitById, updateVisit, getPatientById, getProfileById } from '../../features/shared/dataService';
 import { getCurrentUser } from '../../services/authService';
 import { useAuthStore } from '../../store';
 import Button from '../../components/ui/Button';
@@ -90,7 +90,12 @@ const SampleTimePage = () => {
 
   // Load data
   useEffect(() => {
+    console.log('=== SAMPLE TIME PAGE - Loading visit:', visitId);
     const visitData = getVisitById(visitId);
+    console.log('Visit data loaded:', visitData);
+    console.log('Visit tests:', visitData?.tests);
+    console.log('Visit tests count:', visitData?.tests?.length || 0);
+    
     if (!visitData) {
       toast.error('Visit not found');
       navigate('/patients');
@@ -99,10 +104,12 @@ const SampleTimePage = () => {
     setVisit(visitData);
 
     const patientData = getPatientById(visitData.patientId);
+    console.log('Patient data:', patientData);
     setPatient(patientData);
     
     if (visitData.profileId) {
       const profileData = getProfileById(visitData.profileId);
+      console.log('Profile data:', profileData);
       setProfile(profileData);
     }
 
@@ -353,7 +360,7 @@ const SampleTimePage = () => {
           <div className="info-item" title={visit.tests?.map(t => t.name || t.name_snapshot).join(', ')}>
             <TestTube2 size={16} className="icon-tests" />
             <span className="label">Tests:</span>
-            <span className="value tests-hover">{visit.tests?.length || 0} • {profile?.name || 'Custom'}</span>
+            <span className="value tests-hover">{visit.tests?.length || 0} • {visit.profileNames || 'Custom'}</span>
           </div>
           <div className="info-item">
             <span className="label">Amount:</span>

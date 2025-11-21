@@ -33,15 +33,17 @@ const COLLECTIONS = {
 // Initialize Firestore with seed data on first launch
 export const initializeFirestoreData = async () => {
   try {
-    // Check if data already exists
-    const settingsRef = doc(db, COLLECTIONS.SETTINGS, 'app_settings');
-    const settingsDoc = await getDoc(settingsRef);
+    // Check if tests exist (more reliable than checking settings)
+    const testsRef = collection(db, COLLECTIONS.TESTS_MASTER);
+    const testsSnapshot = await getDocs(testsRef);
     
-    if (!settingsDoc.exists()) {
-      console.log('Initializing Firestore with seed data...');
+    // Only initialize if no tests exist
+    if (testsSnapshot.empty) {
+      console.log('No tests found. Initializing Firestore with seed data...');
       const batch = writeBatch(db);
 
       // Initialize Settings
+      const settingsRef = doc(db, COLLECTIONS.SETTINGS, 'app_settings');
       const defaultSettings = {
         dataVersion: '2.0',
         allowStaffInlineCreate: false,
@@ -102,11 +104,11 @@ export const initializeFirestoreData = async () => {
       });
 
       await batch.commit();
-      console.log('Firestore initialization complete!');
+      console.log(`Firestore initialization complete! Added ${testMap.size} tests and ${PROFILES.length} profiles.`);
       return true;
     }
     
-    console.log('Firestore already initialized');
+    console.log(`Firestore already initialized with ${testsSnapshot.size} tests.`);
     return true;
   } catch (error) {
     console.error('Error initializing Firestore:', error);
@@ -260,6 +262,11 @@ export const getPatients = async () => {
 
 export const getPatientById = async (patientId) => {
   try {
+    if (!patientId) {
+      console.warn('getPatientById called with undefined/null patientId');
+      return null;
+    }
+    
     const patientsRef = collection(db, COLLECTIONS.PATIENTS);
     const q = query(patientsRef, where('patientId', '==', patientId));
     const snapshot = await getDocs(q);
@@ -381,6 +388,11 @@ export const getVisits = async () => {
 
 export const getVisitById = async (visitId) => {
   try {
+    if (!visitId) {
+      console.warn('getVisitById called with undefined/null visitId');
+      return null;
+    }
+    
     const visitsRef = collection(db, COLLECTIONS.VISITS);
     const q = query(visitsRef, where('visitId', '==', visitId));
     const snapshot = await getDocs(q);
@@ -398,6 +410,11 @@ export const getVisitById = async (visitId) => {
 
 export const getVisitsByPatientId = async (patientId) => {
   try {
+    if (!patientId) {
+      console.warn('getVisitsByPatientId called with undefined/null patientId');
+      return [];
+    }
+    
     const visitsRef = collection(db, COLLECTIONS.VISITS);
     const q = query(visitsRef, where('patientId', '==', patientId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
