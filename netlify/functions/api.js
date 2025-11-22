@@ -15,18 +15,40 @@ app.use(express.json({ limit: '50mb' }));
 
 // Connect to DB for every request (serverless)
 app.use(async (req, res, next) => {
-  await connectDB();
+  req.dbConnected = await connectDB();
   next();
 });
 
 // Health check
 router.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database: req.dbConnected ? 'connected' : 'not configured'
+  });
 });
 
 // ===== SYNC (Load all data) =====
 router.get('/sync', async (req, res) => {
   try {
+    // If DB not connected, return empty data
+    if (!req.dbConnected) {
+      return res.json({
+        success: true,
+        data: {
+          patients: [],
+          visits: [],
+          results: [],
+          invoices: [],
+          settings: {},
+          auditLogs: [],
+          profiles: [],
+          testsMaster: []
+        },
+        message: 'Database not configured - using local storage only'
+      });
+    }
+
     const [patients, visits, results, invoices, settings, auditLogs, profiles, testsMaster] = await Promise.all([
       Patient.find({}),
       Visit.find({}),
