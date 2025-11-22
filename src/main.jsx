@@ -2,7 +2,15 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { preloadCriticalImages } from './utils/assetPath';
 import './index.css';
+
+// PERFORMANCE: Preload images for INSTANT PDF generation
+preloadCriticalImages().then(() => {
+  console.log('⚡ PDF images ready - generation will be FAST!');
+}).catch(err => {
+  console.warn('⚠️ Some images failed to preload:', err);
+});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

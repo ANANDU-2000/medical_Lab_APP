@@ -3,6 +3,9 @@
  * Handles proper asset paths for both development and production (Netlify)
  */
 
+// PERFORMANCE: Cache base64 images to avoid re-encoding
+const imageCache = new Map();
+
 /**
  * Get proper image path
  * In dev: /images/...
@@ -18,9 +21,18 @@ export const getImagePath = (imagePath) => {
 
 /**
  * Convert image to base64 data URL for PDF generation
+ * PERFORMANCE OPTIMIZED: Uses cache to avoid re-encoding same images
  * This works in both dev and production (Netlify)
  */
 export const imageToBase64 = async (imagePath) => {
+  // Check cache first (MASSIVE PERFORMANCE BOOST!)
+  if (imageCache.has(imagePath)) {
+    console.log('⚡ Using cached image:', imagePath);
+    return imageCache.get(imagePath);
+  }
+  
+  console.log('🔄 Encoding image to base64:', imagePath);
+  
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'Anonymous';
@@ -35,6 +47,11 @@ export const imageToBase64 = async (imagePath) => {
         ctx.drawImage(img, 0, 0);
         
         const dataURL = canvas.toDataURL('image/png');
+        
+        // CACHE IT!
+        imageCache.set(imagePath, dataURL);
+        console.log('✅ Image cached:', imagePath);
+        
         resolve(dataURL);
       } catch (error) {
         reject(error);
@@ -69,19 +86,28 @@ export const SIGNATURE_PATHS = {
 
 /**
  * Preload critical images
- * Call this on app initialization to cache images
+ * Call this on app initialization to cache images for FAST PDF generation
+ * PERFORMANCE: Pre-caches all images so PDFs generate INSTANTLY!
  */
-export const preloadCriticalImages = () => {
+export const preloadCriticalImages = async () => {
+  console.log('🚀 Preloading critical images for fast PDF generation...');
+  
   const imagesToPreload = [
     LOGO_PATHS.healit,
     LOGO_PATHS.partner,
-    SIGNATURE_PATHS.rakhi
+    SIGNATURE_PATHS.rakhi,
+    SIGNATURE_PATHS.aparna
   ];
 
-  imagesToPreload.forEach(src => {
-    const img = new Image();
-    img.src = src;
-  });
+  const promises = imagesToPreload.map(src => 
+    imageToBase64(src).catch(err => {
+      console.warn(`⚠️ Failed to preload ${src}:`, err);
+      return null;
+    })
+  );
+  
+  await Promise.all(promises);
+  console.log('✅ All critical images preloaded and cached!');
 };
 
 export default {

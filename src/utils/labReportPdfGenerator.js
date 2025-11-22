@@ -405,16 +405,76 @@ export const downloadLabReport = async (reportData, fileName, options = {}) => {
  * Print lab report PDF
  */
 export const printLabReport = async (reportData, options = {}) => {
-  const doc = await generateLabReportPDF(reportData, options);
-  const blob = doc.output('blob');
-  const url = URL.createObjectURL(blob);
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  iframe.src = url;
-  document.body.appendChild(iframe);
-  iframe.onload = () => {
-    iframe.contentWindow.print();
-  };
+  console.log('🖨️ printLabReport called');
+  
+  try {
+    console.log('1️⃣ Generating lab report PDF...');
+    const doc = await generateLabReportPDF(reportData, options);
+    
+    console.log('2️⃣ Converting to blob...');
+    const blob = doc.output('blob');
+    console.log('Blob size:', blob.size, 'bytes');
+    
+    console.log('3️⃣ Creating object URL...');
+    const url = URL.createObjectURL(blob);
+    console.log('Blob URL:', url);
+    
+    console.log('4️⃣ Creating iframe for printing...');
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    iframe.src = url;
+    
+    console.log('5️⃣ Appending iframe to body...');
+    document.body.appendChild(iframe);
+    
+    console.log('6️⃣ Waiting for iframe load...');
+    iframe.onload = () => {
+      console.log('✅ Iframe loaded! Opening print dialog...');
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        console.log('✅ Print dialog opened successfully!');
+        
+        // Clean up after print
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          URL.revokeObjectURL(url);
+          console.log('🧹 Cleaned up iframe and blob URL');
+        }, 1000);
+      } catch (printError) {
+        console.error('❌ Print dialog error:', printError);
+        document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+        throw new Error('Failed to open print dialog: ' + printError.message);
+      }
+    };
+    
+    iframe.onerror = (error) => {
+      console.error('❌ Iframe load error:', error);
+      document.body.removeChild(iframe);
+      URL.revokeObjectURL(url);
+      throw new Error('Failed to load PDF for printing');
+    };
+    
+    // Timeout fallback
+    setTimeout(() => {
+      if (iframe.parentNode) {
+        console.warn('⚠️ Print timeout - cleaning up...');
+        document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+      }
+    }, 10000); // 10 second timeout
+    
+  } catch (error) {
+    console.error('❌ CRITICAL: printLabReport failed:', error);
+    console.error('Error stack:', error.stack);
+    throw error;
+  }
 };
 
 /**
