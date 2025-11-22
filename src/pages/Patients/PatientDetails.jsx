@@ -24,6 +24,7 @@ const PatientDetails = () => {
     age: '',
     gender: '',
     phone: '',
+    email: '', // Added email
     address: '',
     referredBy: ''
   });
@@ -402,6 +403,7 @@ const PatientDetails = () => {
       age: patient.age,
       gender: patient.gender,
       phone: patient.phone,
+      email: patient.email || '', // Added email
       address: patient.address || '',
       referredBy: patient.referredBy || ''
     });
@@ -421,6 +423,7 @@ const PatientDetails = () => {
         age: parseInt(editData.age),
         gender: editData.gender,
         phone: editData.phone,
+        email: editData.email, // Added email
         address: editData.address,
         referredBy: editData.referredBy
       });
@@ -440,6 +443,68 @@ const PatientDetails = () => {
         <Button variant="ghost" onClick={() => navigate('/patients')} icon={ArrowLeft}>
           Back to Patients
         </Button>
+        
+        {/* Quick Action Icons - Top Right */}
+        {hasResults && (
+          <div className="header-quick-actions">
+            <button 
+              className="icon-action-btn" 
+              onClick={handleDownloadPDF}
+              disabled={isGenerating}
+              title="Download PDF"
+            >
+              <Download size={20} />
+            </button>
+            <button 
+              className="icon-action-btn" 
+              onClick={handlePrint}
+              disabled={isGenerating}
+              title="Print Report"
+            >
+              <Printer size={20} />
+            </button>
+            <button 
+              className="icon-action-btn success" 
+              onClick={handleWhatsAppShare}
+              disabled={isGenerating}
+              title="Share via WhatsApp"
+            >
+              <Share2 size={20} />
+            </button>
+            <button 
+              className="icon-action-btn" 
+              onClick={async () => {
+                setIsGenerating(true);
+                try {
+                  const signingTechnician = visit.signing_technician_id ? 
+                    getTechnicians().find(t => t.technicianId === visit.signing_technician_id) : null;
+                  
+                  const result = await shareViaEmail({
+                    ...visit,
+                    patient,
+                    profile,
+                    signingTechnician
+                  }, patient.email || '');
+                  
+                  if (result.success) {
+                    toast.success(result.message || 'Email opened with PDF ready to share!');
+                  } else {
+                    toast.error('Failed to share via email: ' + (result.error || 'Unknown error'));
+                  }
+                } catch (error) {
+                  console.error('Email share error:', error);
+                  toast.error('Failed to share via email');
+                } finally {
+                  setIsGenerating(false);
+                }
+              }}
+              disabled={isGenerating}
+              title="Share via Email"
+            >
+              <Mail size={20} />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="patient-details-grid">
@@ -637,51 +702,6 @@ const PatientDetails = () => {
               )}
             </div>
           </Card>
-
-          {hasResults && (
-            <Card title="Report Actions" className="actions-card">
-              <div className="action-grid">
-                <Button 
-                  onClick={handleDownloadPDF}
-                  icon={Download}
-                  variant="primary"
-                  loading={isGenerating}
-                >
-                  Download PDF
-                </Button>
-                <Button 
-                  onClick={handlePrint}
-                  icon={Printer}
-                  variant="secondary"
-                  loading={isGenerating}
-                >
-                  Print Report
-                </Button>
-                <Button 
-                  onClick={handleWhatsAppShare}
-                  icon={Share2}
-                  variant="success"
-                  loading={isGenerating}
-                >
-                  Share via WhatsApp
-                </Button>
-                <Button 
-                  onClick={() => shareViaEmail({
-                    ...visit,
-                    patient,
-                    profile,
-                    signingTechnician: visit.signing_technician_id ? 
-                      getTechnicians().find(t => t.technicianId === visit.signing_technician_id) : null
-                  }, patient.email || '')}
-                  icon={Mail}
-                  variant="secondary"
-                  loading={isGenerating}
-                >
-                  Share via Email
-                </Button>
-              </div>
-            </Card>
-          )}
         </div>
       </div>
 
@@ -754,6 +774,20 @@ const PatientDetails = () => {
                   onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
                   className="form-input"
                   required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  <Mail size={16} />
+                  Email (Optional)
+                </label>
+                <input
+                  type="email"
+                  value={editData.email}
+                  onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                  className="form-input"
+                  placeholder="patient@example.com"
                 />
               </div>
 

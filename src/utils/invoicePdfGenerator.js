@@ -39,7 +39,7 @@ const formatDate = (isoString) => {
 export const generateInvoicePDF = async (invoiceData) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
-  let yPos = 15;
+  let yPos = 10; // Reduced from 12
 
   const {
     patient = {},
@@ -51,15 +51,15 @@ export const generateInvoicePDF = async (invoiceData) => {
     amountPaid = 0
   } = invoiceData;
 
-  // ========== HEADER ==========
+  // ========== SUPER COMPACT HEADER ==========
   // Header border top
   doc.setDrawColor(229, 231, 235);
   doc.setLineWidth(0.5);
   doc.line(15, yPos, pageWidth - 15, yPos);
-  yPos += 3;
+  yPos += 2;
   
-  // Add logos - SAME AS REPORT PDF
-  const logoHeight = 24;
+  // Smaller logos
+  const logoHeight = 16; // Reduced from 18
   const logoY = yPos;
   
   // Left Logo - HEALit (convert to base64)
@@ -91,56 +91,56 @@ export const generateInvoicePDF = async (invoiceData) => {
     doc.text('[Thyrocare]', pageWidth - 25, yPos + 12, { align: 'right' });
   }
 
-  yPos += logoHeight + 3;
+  yPos += logoHeight + 2; // Reduced spacing
 
-  // Sub-title
-  doc.setFontSize(11);
+  // Sub-title - Smaller
+  doc.setFontSize(8); // Reduced from 9
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(75, 85, 99);
   doc.text('Kunnathpeedika – Thrissur, Kerala', pageWidth / 2, yPos, { align: 'center' });
 
-  yPos += 4;
+  yPos += 3; // Reduced from 3
 
-  // Contact
-  doc.setFontSize(9);
+  // Contact - Smaller
+  doc.setFontSize(7); // Reduced from 8
   doc.text('Phone: 7356865161 | Email: healitlab@gmail.com', pageWidth / 2, yPos, { align: 'center' });
 
-  yPos += 5;
+  yPos += 3; // Reduced from 4
 
   // Line
   doc.setDrawColor(229, 231, 235);
   doc.setLineWidth(0.5);
   doc.line(15, yPos, pageWidth - 15, yPos);
 
-  yPos += 8;
+  yPos += 5; // Reduced from 6
 
-  // ========== INVOICE TITLE ==========
-  doc.setFontSize(16);
+  // ========== INVOICE TITLE - SMALLER ==========
+  doc.setFontSize(13); // Reduced from 14
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text('LAB INVOICE / BILL', pageWidth / 2, yPos, { align: 'center' });
 
-  yPos += 10;
+  yPos += 6; // Reduced from 8
 
-  // ========== PATIENT & INVOICE DETAILS ==========
+  // ========== PATIENT & INVOICE DETAILS - COMPACT ==========
   const leftCol = 15;
   const rightCol = 115;
 
-  doc.setFontSize(10);
+  doc.setFontSize(7.5); // Reduced from 8.5
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text('PATIENT DETAILS', leftCol, yPos);
   doc.text('INVOICE DETAILS', rightCol, yPos);
 
-  yPos += 6;
+  yPos += 4; // Reduced from 5
 
-  // Left: Patient details
+  // Left: Patient details - Smaller font
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(7); // Reduced from 8
   
   const patientLines = [
-    `Patient Name: ${patient.name || '-'}`,
-    `Phone: ${patient.phone || '-'}`,
+    `Patient: ${patient.name || '-'}`,
+    `Ph: ${patient.phone || '-'}`,
     `Age/Gender: ${patient.age || '-'}Y / ${patient.gender || '-'}`,
     `Visit ID: ${patient.visitId || '-'}`,
     `Date: ${patient.date ? formatDate(patient.date) : '-'}`
@@ -148,50 +148,50 @@ export const generateInvoicePDF = async (invoiceData) => {
 
   patientLines.forEach(line => {
     doc.text(line, leftCol, yPos);
-    yPos += 5;
+    yPos += 3.5; // Reduced from 4
   });
   
-  // Address - Handle multiline
+  // Address - Handle multiline - Compact
   const address = patient.address || 'Not provided';
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(7);
   doc.text('Address:', leftCol, yPos);
   doc.setFont('helvetica', 'normal');
   
   const addressLines = doc.splitTextToSize(address, 85);
   addressLines.forEach((line, idx) => {
-    doc.text(line, leftCol + 18, yPos + (idx * 4));
+    doc.text(line, leftCol + 16, yPos + (idx * 3)); // Reduced spacing
   });
-  yPos += 4 + (addressLines.length - 1) * 4;
+  yPos += 3 + (addressLines.length - 1) * 3;
   
-  yPos += 5;
+  yPos += 3.5; // Reduced from 4
   doc.text(`Payment: ${patient.paymentStatus || 'Unpaid'}`, leftCol, yPos);
-  yPos += 5;
+  yPos += 3.5; // Reduced from 4
 
-  // Right: Invoice details
-  yPos -= 30;
+  // Right: Invoice details - Smaller
+  yPos -= 22; // Adjusted positioning
   
   // Add test times if available (from visit data)
   const times = invoiceData.times || {};
   
   const invoiceLines = [
-    `Invoice No: ${invoice.invoiceNumber || 'INV-' + Date.now()}`,
+    `Invoice: ${invoice.invoiceNumber || 'INV-' + Date.now()}`,
     `Generated: ${invoice.generatedOn ? formatDateTime(invoice.generatedOn) : formatDateTime(new Date())}`,
     `Staff: ${invoice.staffName || '-'}`,
     `Method: ${invoice.method || 'Cash'}`
   ];
   
   // Always add time fields (show "—" if not available)
-  invoiceLines.push(`Collected On: ${times.collected ? formatDateTime(times.collected) : '—'}`);
-  invoiceLines.push(`Received On: ${times.received ? formatDateTime(times.received) : '—'}`);
-  invoiceLines.push(`Reported On: ${times.reported ? formatDateTime(times.reported) : '—'}`);
+  invoiceLines.push(`Collected: ${times.collected ? formatDateTime(times.collected) : '—'}`);
+  invoiceLines.push(`Received: ${times.received ? formatDateTime(times.received) : '—'}`);
+  invoiceLines.push(`Reported: ${times.reported ? formatDateTime(times.reported) : '—'}`);
 
   invoiceLines.forEach(line => {
     doc.text(line, rightCol, yPos);
-    yPos += 5;
+    yPos += 3.5; // Reduced from 4
   });
 
-  yPos += 10;
+  yPos += 6; // Reduced from 8
 
   // ========== ITEMS TABLE ==========
   const tableData = items.map((item, index) => {
@@ -218,25 +218,25 @@ export const generateInvoicePDF = async (invoiceData) => {
       fillColor: [30, 58, 138],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 10,
+      fontSize: 7.5, // Reduced from 8.5
       halign: 'center',
       valign: 'middle',
-      cellPadding: 5
+      cellPadding: 2 // Reduced from 3
     },
     bodyStyles: {
-      fontSize: 10,
+      fontSize: 7.5, // Reduced from 8.5
       textColor: [0, 0, 0],
-      cellPadding: 4
+      cellPadding: 2 // Reduced from 2.5
     },
     alternateRowStyles: {
       fillColor: [249, 250, 251]
     },
     columnStyles: {
-      0: { cellWidth: 15, halign: 'center', valign: 'middle', fontStyle: 'bold' },
-      1: { cellWidth: 85, halign: 'left', valign: 'middle', fontStyle: 'bold' },
-      2: { cellWidth: 30, halign: 'right', valign: 'middle' },
-      3: { cellWidth: 15, halign: 'center', valign: 'middle' },
-      4: { cellWidth: 35, halign: 'right', valign: 'middle', fontStyle: 'bold' }
+      0: { cellWidth: 10, halign: 'center', valign: 'middle', fontStyle: 'bold' },
+      1: { cellWidth: 95, halign: 'left', valign: 'middle', fontStyle: 'bold' },
+      2: { cellWidth: 25, halign: 'right', valign: 'middle' },
+      3: { cellWidth: 10, halign: 'center', valign: 'middle' },
+      4: { cellWidth: 40, halign: 'right', valign: 'middle', fontStyle: 'bold' }
     },
     margin: { left: 15, right: 15 },
     didDrawPage: (data) => {
@@ -246,8 +246,8 @@ export const generateInvoicePDF = async (invoiceData) => {
     }
   });
 
-  // ========== SUMMARY SECTION ==========
-  yPos = doc.lastAutoTable.finalY + 10;
+  // ========== SUMMARY SECTION - COMPACT ==========
+  yPos = doc.lastAutoTable.finalY + 5; // Reduced from 6
   
   // Calculate totals correctly - ENSURE NUMBERS
   const calculatedSubtotal = items.reduce((sum, item) => {
@@ -260,22 +260,22 @@ export const generateInvoicePDF = async (invoiceData) => {
   const actualPaid = parseFloat(amountPaid) || calculatedTotal;
   const balance = calculatedTotal - actualPaid;
   
-  // Create summary box on right side - Professional Layout
-  const summaryX = pageWidth - 105;
-  const summaryWidth = 90;
+  // Create summary box on right side - Compact Layout
+  const summaryX = pageWidth - 90; // Smaller width
+  const summaryWidth = 75; // Reduced from 80
   
   doc.setDrawColor(30, 58, 138);
-  doc.setLineWidth(1);
+  doc.setLineWidth(0.7); // Thinner border
   doc.setFillColor(248, 250, 252);
-  doc.roundedRect(summaryX, yPos, summaryWidth, 45, 3, 3, 'FD');
+  doc.roundedRect(summaryX, yPos, summaryWidth, 34, 2, 2, 'FD'); // Smaller height
   
-  // Summary content
-  let summaryY = yPos + 9;
-  const labelX = summaryX + 6;
-  const valueX = pageWidth - 18;
+  // Summary content - Smaller fonts
+  let summaryY = yPos + 6; // Reduced padding
+  const labelX = summaryX + 4; // Reduced padding
+  const valueX = pageWidth - 16;
   
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(7.5); // Reduced from 8.5
   doc.setTextColor(100, 116, 139);
   
   // Subtotal
@@ -283,7 +283,7 @@ export const generateInvoicePDF = async (invoiceData) => {
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text('Rs. ' + calculatedSubtotal.toFixed(2), valueX, summaryY, { align: 'right' });
-  summaryY += 8;
+  summaryY += 5.5; // Reduced spacing
   
   // Discount
   if (actualDiscount > 0) {
@@ -294,7 +294,7 @@ export const generateInvoicePDF = async (invoiceData) => {
     doc.setTextColor(220, 38, 38);
     doc.text('- Rs. ' + actualDiscount.toFixed(2), valueX, summaryY, { align: 'right' });
     doc.setTextColor(0, 0, 0);
-    summaryY += 8;
+    summaryY += 5.5;
   }
   
   // Tax/GST
@@ -304,87 +304,87 @@ export const generateInvoicePDF = async (invoiceData) => {
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text('Rs. 0.00', valueX, summaryY, { align: 'right' });
-  summaryY += 8;
+  summaryY += 5.5;
   
   // Divider
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.5);
   doc.line(labelX, summaryY - 2, valueX, summaryY - 2);
-  summaryY += 3;
+  summaryY += 2;
   
   // Amount Paid
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
-  doc.text('Amount Paid:', labelX, summaryY);
+  doc.text('Paid:', labelX, summaryY);
   doc.setTextColor(22, 163, 74);
   doc.setFont('helvetica', 'bold');
   doc.text('Rs. ' + actualPaid.toFixed(2), valueX, summaryY, { align: 'right' });
-  summaryY += 8;
+  summaryY += 5.5;
   
   // Balance Due
   doc.setFont('helvetica', 'normal');
   if (balance > 0) {
     doc.setTextColor(100, 116, 139);
-    doc.text('Balance Due:', labelX, summaryY);
+    doc.text('Balance:', labelX, summaryY);
     doc.setTextColor(220, 38, 38);
     doc.setFont('helvetica', 'bold');
     doc.text('Rs. ' + balance.toFixed(2), valueX, summaryY, { align: 'right' });
   } else {
     doc.setTextColor(100, 116, 139);
-    doc.text('Balance Due:', labelX, summaryY);
+    doc.text('Balance:', labelX, summaryY);
     doc.setTextColor(22, 163, 74);
     doc.setFont('helvetica', 'bold');
     doc.text('Rs. 0.00', valueX, summaryY, { align: 'right' });
   }
 
-  // ========== FOOTER WITH SIGNATURES ==========
-  const footerY = 260;
+  // ========== COMPACT FOOTER WITH SIGNATURES ==========
+  const footerY = 245; // Moved up from 250
   
-  // Thank you note
-  doc.setFontSize(9);
+  // Thank you note - Smaller
+  doc.setFontSize(7); // Reduced from 8
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(75, 85, 99);
   doc.text('Thank you for choosing HEALit Med Laboratories. Get well soon!', 15, footerY);
   
-  yPos = footerY + 8;
+  yPos = footerY + 5; // Reduced spacing
   
   // LEFT SIGNATURE - Billing Staff
   const leftSigX = 15;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(7); // Reduced from 8
   doc.setTextColor(0, 0, 0);
   doc.text('Billed By:', leftSigX, yPos);
   
-  // Add staff signature image (convert to base64)
+  // Add staff signature image - clean transparent
   try {
     const staffSignatureBase64 = await imageToBase64(SIGNATURE_PATHS.rakhi);
-    doc.addImage(staffSignatureBase64, 'JPEG', leftSigX, yPos + 2, 30, 12);
+    doc.addImage(staffSignatureBase64, 'PNG', leftSigX, yPos + 1, 25, 10, undefined, 'FAST');
   } catch (error) {
     console.error('Staff signature failed:', error);
-    doc.line(leftSigX, yPos + 8, leftSigX + 40, yPos + 8);
+    doc.line(leftSigX, yPos + 6, leftSigX + 25, yPos + 6);
   }
   
-  doc.setFontSize(8);
-  doc.text(invoiceData.invoice?.staffName || 'Staff', leftSigX, yPos + 16);
+  doc.setFontSize(6.5); // Smaller font
+  doc.text(invoiceData.invoice?.staffName || 'Staff', leftSigX, yPos + 13);
   
   // RIGHT SIGNATURE - Authorized Signatory
-  const rightSigX = pageWidth - 70;
+  const rightSigX = pageWidth - 60; // Adjusted position
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(7);
   doc.text('Authorized Signatory:', rightSigX, yPos);
   
-  // Add authorized signature image (convert to base64)
+  // Add authorized signature image - clean transparent
   try {
     const authSignatureBase64 = await imageToBase64(SIGNATURE_PATHS.aparna);
-    doc.addImage(authSignatureBase64, 'PNG', rightSigX, yPos + 2, 30, 12);
+    doc.addImage(authSignatureBase64, 'PNG', rightSigX, yPos + 1, 25, 10, undefined, 'FAST');
   } catch (error) {
     console.error('Auth signature failed:', error);
-    doc.line(rightSigX, yPos + 8, rightSigX + 45, yPos + 8);
+    doc.line(rightSigX, yPos + 6, rightSigX + 25, yPos + 6);
   }
   
-  doc.setFontSize(8);
-  doc.text('Lab In-Charge', rightSigX, yPos + 16);
+  doc.setFontSize(6.5);
+  doc.text('Lab In-Charge', rightSigX, yPos + 13);
 
   return doc;
 };

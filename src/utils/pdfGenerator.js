@@ -159,9 +159,9 @@ export const generateReportPDF = async (visitData) => {
     console.log('PDF Table - Tests count:', tests.length);
     
     // Smart pagination: Calculate if table fits on current page
-    // Reserve 90mm for signatures and footer to prevent ANY overlap
-    const estimatedTableHeight = (tests.length * 6) + 18;
-    const signatureReservedSpace = 90; // Increased to 90mm for safety
+    // Reserve 60mm for signatures and footer (reduced for better space usage)
+    const estimatedTableHeight = (tests.length * 5) + 16;
+    const signatureReservedSpace = 60; // Reduced to 60mm for better pagination
     const spaceLeft = pageHeight - yPos - signatureReservedSpace;
     
     // Check if we need a new page BEFORE starting table
@@ -176,8 +176,6 @@ export const generateReportPDF = async (visitData) => {
       const testValue = test.value || '—';
       const testUnit = test.unit_snapshot || test.unit || '';
       const reference = formatReference(test);
-      const resultColor = getResultColor(test);
-      const resultBgColor = getResultBgColor(test);
       const isAbnormal = isValueAbnormal(test);
       
       return [
@@ -185,10 +183,10 @@ export const generateReportPDF = async (visitData) => {
         { 
           content: testValue, 
           styles: { 
-            textColor: resultColor,
-            fillColor: resultBgColor || [255, 255, 255],
+            textColor: [0, 0, 0], // Always black - no color coding
+            fillColor: [255, 255, 255], // Always white background
             fontStyle: isAbnormal ? 'bold' : 'normal',
-            fontSize: isAbnormal ? 10.5 : 10,
+            fontSize: isAbnormal ? 11 : 9, // Larger and bold for abnormal, but NO color
             halign: 'center'
           } 
         },
@@ -204,29 +202,29 @@ export const generateReportPDF = async (visitData) => {
       theme: 'striped',
       styles: {
         font: 'helvetica',
-        fontSize: 9,
-        cellPadding: 3,
-        textColor: '#111827',
+        fontSize: 8, // Further reduced for tighter fit
+        cellPadding: 2, // Tighter padding
+        textColor: '#000000', // Pure black
         lineColor: [30, 64, 175],
         lineWidth: 0.2,
         overflow: 'linebreak',
         valign: 'middle',
-        minCellHeight: 5.5
+        minCellHeight: 4.5 // Reduced for more rows per page
       },
       headStyles: {
         fillColor: [30, 64, 175],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 9,
+        fontSize: 8,
         halign: 'center',
         valign: 'middle',
-        cellPadding: 3.5
+        cellPadding: 2.5
       },
       columnStyles: {
-        0: { cellWidth: 60, halign: 'left', fontStyle: 'bold', fontSize: 9 },
-        1: { cellWidth: 30, halign: 'center', fontStyle: 'normal', fontSize: 9 },
-        2: { cellWidth: 25, halign: 'center', fontSize: 8.5 },
-        3: { cellWidth: 65, halign: 'left', fontSize: 8, cellPadding: 2, overflow: 'linebreak', whiteSpace: 'normal' }
+        0: { cellWidth: 60, halign: 'left', fontStyle: 'bold', fontSize: 8 },
+        1: { cellWidth: 30, halign: 'center', fontStyle: 'normal', fontSize: 8 },
+        2: { cellWidth: 25, halign: 'center', fontSize: 7.5 },
+        3: { cellWidth: 65, halign: 'left', fontSize: 7, cellPadding: 1.5, overflow: 'linebreak', whiteSpace: 'normal' }
       },
       alternateRowStyles: {
         fillColor: [240, 249, 255]
@@ -238,9 +236,9 @@ export const generateReportPDF = async (visitData) => {
       didDrawPage: function(data) {
         const pageBottom = doc.internal.pageSize.getHeight();
         const currentY = data.cursor.y;
-        // Force new page if less than 90mm space remaining
-        if (pageBottom - currentY < signatureReservedSpace) {
-          return false; // Stop drawing on this page
+        // Reserve space for signatures (55mm should fit 16+ tests on one page)
+        if (pageBottom - currentY < 55) {
+          return false;
         }
       }
     });
@@ -252,18 +250,17 @@ export const generateReportPDF = async (visitData) => {
   // FOOTER - SIGNATURE SECTION (DYNAMIC POSITIONING)
   // ========================================
   
-  // Calculate if we need a new page for signatures and acknowledgement
-  const signatureHeight = 45;
-  const acknowledgementHeight = 40;
+  // Calculate if we need a new page for signatures
+  const signatureHeight = 40;
   const footerNoteHeight = 10;
-  const requiredSpace = signatureHeight + acknowledgementHeight + footerNoteHeight;
+  const requiredSpace = signatureHeight + footerNoteHeight;
   
-  // If less than required space, ALWAYS add new page
-  if (yPos > pageHeight - requiredSpace - 20) {
+  // If less than required space, add new page
+  if (yPos > pageHeight - requiredSpace - 15) {
     doc.addPage();
-    yPos = margin + 15;
+    yPos = margin + 10;
   } else {
-    yPos += 15;
+    yPos += 10;
   }
   
   // Thank you note
@@ -284,19 +281,10 @@ export const generateReportPDF = async (visitData) => {
   doc.setTextColor(17, 17, 17);
   doc.text('Billed By:', leftSigX, yPos);
   
-  // Add white background rectangle for signature visibility
-  doc.setFillColor(255, 255, 255);
-  doc.rect(leftSigX, yPos + 2, 32, 13, 'F');
-  
-  // Add border for better visibility
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.3);
-  doc.rect(leftSigX, yPos + 2, 32, 13, 'S');
-  
-  // Add technician signature image (convert to base64)
+  // Add technician signature image (NO BORDERS/BACKGROUNDS)
   try {
     const technicianSignatureBase64 = await imageToBase64(SIGNATURE_PATHS.rakhi);
-    doc.addImage(technicianSignatureBase64, 'JPEG', leftSigX + 1, yPos + 3, 30, 11);
+    doc.addImage(technicianSignatureBase64, 'PNG', leftSigX, yPos + 2, 30, 12);
   } catch (error) {
     console.error('Technician signature failed:', error);
     doc.setDrawColor(100, 100, 100);
@@ -318,19 +306,10 @@ export const generateReportPDF = async (visitData) => {
   doc.setTextColor(17, 17, 17);
   doc.text('Authorized Signatory:', rightSigX, yPos);
   
-  // Add white background rectangle
-  doc.setFillColor(255, 255, 255);
-  doc.rect(rightSigX, yPos + 2, 32, 13, 'F');
-  
-  // Add border
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.3);
-  doc.rect(rightSigX, yPos + 2, 32, 13, 'S');
-  
-  // Add authorized signature image (convert to base64)
+  // Add authorized signature image (NO BORDERS/BACKGROUNDS)
   try {
     const authSignatureBase64 = await imageToBase64(SIGNATURE_PATHS.aparna);
-    doc.addImage(authSignatureBase64, 'PNG', rightSigX + 1, yPos + 3, 30, 11);
+    doc.addImage(authSignatureBase64, 'PNG', rightSigX, yPos + 2, 30, 12);
   } catch (error) {
     console.error('Auth signature failed:', error);
     doc.setDrawColor(100, 100, 100);
@@ -348,50 +327,10 @@ export const generateReportPDF = async (visitData) => {
   yPos += 28;
   
   // ========================================
-  // PATIENT ACKNOWLEDGEMENT SECTION
-  // ========================================
-  
-  // Add spacing before acknowledgement
-  yPos += 8;
-  
-  // Acknowledgement box
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.5);
-  doc.rect(margin, yPos, pageWidth - 2 * margin, 35, 'S');
-  
-  // Acknowledgement title
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(17, 17, 17);
-  doc.text('Patient Acknowledgement', margin + 5, yPos + 7);
-  
-  // Acknowledgement text
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(75, 85, 99);
-  const ackText = 'I acknowledge that I have received and reviewed my test results. I understand the findings and have been informed about any necessary follow-up actions.';
-  const ackLines = doc.splitTextToSize(ackText, pageWidth - 2 * margin - 10);
-  doc.text(ackLines, margin + 5, yPos + 13);
-  
-  // Signature line and date
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(102, 102, 102);
-  
-  // Signature line
-  doc.setDrawColor(150, 150, 150);
-  doc.line(margin + 10, yPos + 28, margin + 70, yPos + 28);
-  doc.text('Patient Signature', margin + 10, yPos + 32);
-  
-  // Date line
-  doc.line(pageWidth - margin - 60, yPos + 28, pageWidth - margin - 10, yPos + 28);
-  doc.text('Date', pageWidth - margin - 60, yPos + 32);
-  
-  yPos += 40;
-  
-  // ========================================
   // FOOTER NOTE - Source Reference
   // ========================================
+  
+  yPos += 10;
   
   doc.setDrawColor(COLORS.border);
   doc.setLineDash([2, 2]);
@@ -599,32 +538,107 @@ export const getReportPDFBase64 = async (visitData) => {
 };
 
 /**
- * Share via WhatsApp (mobile-friendly)
+ * Share via WhatsApp with PDF attachment (Web Share API)
  */
-export const shareViaWhatsApp = (visitData, phoneNumber) => {
-  const message = `HEALit Medical Report for ${visitData.patient.name}\nReported On: ${formatDateTime(visitData.reportedAt)}\n\nDownload your report here:`;
-  
-  // In production, upload PDF to server and get shareable URL
-  const shareUrl = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
-  window.open(shareUrl, '_blank');
+export const shareViaWhatsApp = async (visitData, phoneNumber) => {
+  try {
+    // Generate the PDF first
+    const doc = await generateReportPDF(visitData);
+    const pdfBlob = doc.output('blob');
+    const fileName = `Report_${visitData.patient.name.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.pdf`;
+    
+    // Check if Web Share API is available and supports files
+    if (navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], fileName)] })) {
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      
+      await navigator.share({
+        title: `Medical Report - ${visitData.patient.name}`,
+        text: `HEALit Medical Report for ${visitData.patient.name}\nReported On: ${formatDateTime(visitData.reportedAt)}`,
+        files: [file]
+      });
+      
+      return { success: true, message: 'PDF shared successfully!' };
+    } else {
+      // Fallback: Open WhatsApp Web with message + auto-download PDF
+      const message = `HEALit Medical Report for ${visitData.patient.name}\nReported On: ${formatDateTime(visitData.reportedAt)}`;
+      const formattedPhone = phoneNumber.replace(/\D/g, ''); // Remove non-digits
+      const shareUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
+      
+      // Download PDF so user can manually attach it
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      // Open WhatsApp
+      window.open(shareUrl, '_blank');
+      
+      return { success: true, message: 'WhatsApp opened. PDF downloaded for manual sharing.' };
+    }
+  } catch (error) {
+    console.error('WhatsApp share error:', error);
+    return { success: false, error: error.message };
+  }
 };
 
 /**
- * Share via Email
+ * Share via Email with PDF attachment
  */
-export const shareViaEmail = (visitData, emailAddress) => {
-  const subject = `Medical Report - ${visitData.patient.name}`;
-  const body = `Dear ${visitData.patient.name},
+export const shareViaEmail = async (visitData, emailAddress) => {
+  try {
+    // Generate the PDF first
+    const doc = await generateReportPDF(visitData);
+    const pdfBlob = doc.output('blob');
+    const fileName = `Report_${visitData.patient.name.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.pdf`;
+    
+    // Check if Web Share API is available and supports files
+    if (navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], fileName)] })) {
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      
+      await navigator.share({
+        title: `Medical Report - ${visitData.patient.name}`,
+        text: `HEALit Medical Report for ${visitData.patient.name}\nReported On: ${formatDateTime(visitData.reportedAt)}`,
+        files: [file]
+      });
+      
+      return { success: true };
+    } else {
+      // Fallback: Use mailto (without attachment, but opens email client)
+      const subject = `Medical Report - ${visitData.patient.name}`;
+      const body = `Dear ${visitData.patient.name},
 
-Your medical test report from HEALit Med Laboratories is attached.
+Your medical test report from HEALit Med Laboratories is ready.
 
 Reported On: ${formatDateTime(visitData.reportedAt)}
 
+Please note: The PDF report should be manually attached to this email.
+
 Best regards,
 HEALit Med Laboratories`;
-  
-  const mailtoUrl = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.open(mailtoUrl);
+      
+      const mailtoUrl = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.open(mailtoUrl);
+      
+      // Also download the PDF so user can manually attach it
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      return { success: true, message: 'Email client opened. PDF downloaded for manual attachment.' };
+    }
+  } catch (error) {
+    console.error('Email share error:', error);
+    return { success: false, error: error.message };
+  }
 };
 
 export default {

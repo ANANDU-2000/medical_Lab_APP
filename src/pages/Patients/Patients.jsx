@@ -16,11 +16,13 @@ import {
   XCircle,
   Clock,
   Edit2,
-  Trash2
+  Trash2,
+  Mail,
+  Share2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getVisits, getPatients, getProfileById, markPDFGenerated, markInvoiceGenerated, getVisitById, deletePatient } from '../../features/shared/dataService';
-import { downloadReportPDF, printReportPDF } from '../../utils/pdfGenerator';
+import { downloadReportPDF, printReportPDF, shareViaWhatsApp, shareViaEmail } from '../../utils/pdfGenerator';
 import { getTechnicians } from '../../services/authService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -642,7 +644,7 @@ const Patients = () => {
                         )}
                       </td>
                       <td className="text-center">
-                        <div style={{display: 'flex', gap: '4px', justifyContent: 'center'}}>
+                        <div style={{display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap'}}>
                           <button 
                             className="icon-btn-edit" 
                             onClick={() => navigate(editLink)}
@@ -657,6 +659,83 @@ const Patients = () => {
                           >
                             <Eye size={14} />
                           </button>
+                          {/* WhatsApp Share - Always visible but only functional for completed */}
+                          <button 
+                            className={`icon-btn-success ${(visit.status === 'report_generated' || visit.status === 'completed') ? '' : 'disabled'}`}
+                            onClick={async () => {
+                              if (visit.status !== 'report_generated' && visit.status !== 'completed') {
+                                toast.error('❌ Report must be generated first!');
+                                return;
+                              }
+                              try {
+                                let signingTechnician = null;
+                                if (visit.signing_technician_id) {
+                                  const technicians = getTechnicians();
+                                  signingTechnician = technicians.find(t => t.technicianId === visit.signing_technician_id);
+                                }
+                                                      
+                                const visitData = {
+                                  ...visit,
+                                  patient,
+                                  profile,
+                                  signingTechnician
+                                };
+                                                      
+                                const result = await shareViaWhatsApp(visitData, patient.phone);
+                                if (result.success) {
+                                  toast.success(result.message || 'Opening WhatsApp...');
+                                } else {
+                                  toast.error('Failed to share via WhatsApp');
+                                }
+                              } catch (error) {
+                                console.error('WhatsApp share error:', error);
+                                toast.error('Failed to share via WhatsApp');
+                              }
+                            }}
+                            title="Share via WhatsApp"
+                            disabled={(visit.status !== 'report_generated' && visit.status !== 'completed')}
+                          >
+                            <Share2 size={14} />
+                          </button>
+                          {/* Email Share - Always visible if email exists but only functional for completed */}
+                          {patient.email && (
+                            <button 
+                              className={`icon-btn ${(visit.status === 'report_generated' || visit.status === 'completed') ? '' : 'disabled'}`}
+                              onClick={async () => {
+                                if (visit.status !== 'report_generated' && visit.status !== 'completed') {
+                                  toast.error('❌ Report must be generated first!');
+                                  return;
+                                }
+                                try {
+                                  let signingTechnician = null;
+                                  if (visit.signing_technician_id) {
+                                    const technicians = getTechnicians();
+                                    signingTechnician = technicians.find(t => t.technicianId === visit.signing_technician_id);
+                                  }
+                                                        
+                                  const visitData = {
+                                    ...visit,
+                                    patient,
+                                    profile,
+                                    signingTechnician
+                                  };
+                                                        
+                                  const result = await shareViaEmail(visitData, patient.email);
+                                  if (result.success) {
+                                    toast.success(result.message || 'Email opened with PDF!');
+                                  } else {
+                                    toast.error('Failed to share via email');
+                                  }
+                                } catch (error) {
+                                  toast.error('Failed to share via email');
+                                }
+                              }}
+                              title="Share via Email"
+                              disabled={(visit.status !== 'report_generated' && visit.status !== 'completed')}
+                            >
+                              <Mail size={14} />
+                            </button>
+                          )}
                           <button 
                             className="icon-btn-delete" 
                             onClick={() => handleDeletePatient(visit)}

@@ -63,8 +63,8 @@ export const LOGO_PATHS = {
  * Get signature paths
  */
 export const SIGNATURE_PATHS = {
-  rakhi: getImagePath('images/rakhi-signature.jpg'),
-  aparna: getImagePath('images/signatures/aparna-signature.png') // if exists
+  rakhi: getImagePath('images/signatures/rakhi-signature.png'),
+  aparna: getImagePath('images/signatures/aparna-signature.png')
 };
 
 /**

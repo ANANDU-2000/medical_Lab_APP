@@ -763,21 +763,39 @@ const ResultEntryPage = () => {
   };
   
   // Share via Email
-  const handleShareEmail = () => {
+  const handleShareEmail = async () => {
     if (!visit.reportedAt) {
       toast.error('Please generate report first');
       return;
     }
     
+    let signingTechnician = null;
+    if (visit.signing_technician_id) {
+      // Use getUsers() which is already imported
+      const users = getUsers();
+      signingTechnician = users.find(u => u.userId === visit.signing_technician_id);
+    }
+    
     const visitData = {
       ...visit,
       patient,
-      profile
+      profile,
+      signingTechnician
     };
     
     const email = prompt('Enter email address:', patient.email || '');
     if (email) {
-      shareViaEmail(visitData, email);
+      try {
+        const result = await shareViaEmail(visitData, email);
+        if (result.success) {
+          toast.success(result.message || 'Email opened with PDF ready to share!');
+        } else {
+          toast.error('Failed to share via email: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Email share error:', error);
+        toast.error('Failed to share via email');
+      }
     }
   };
 

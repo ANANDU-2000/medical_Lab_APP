@@ -368,8 +368,88 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Right Section - Staff Activity + Financial Snapshot */}
+        {/* Right Section - Alerts + Staff Activity + Financial Snapshot */}
         <div className="dashboard-right">
+          {/* Real-Time Alerts Panel */}
+          <Card className="alerts-card">
+            <div className="card-header">
+              <h3>Real-Time Alerts</h3>
+              <AlertCircle size={20} color="#EF4444" />
+            </div>
+            <div className="alerts-container">
+              {/* Waiting for Results */}
+              {alerts.waiting.length > 0 && (
+                <div className="alert-section" style={{ borderLeftColor: '#F59E0B' }}>
+                  <div className="alert-header">
+                    <Clock size={16} color="#F59E0B" />
+                    <span className="alert-title" style={{ color: '#F59E0B' }}>Waiting for Results</span>
+                    <span className="count-badge" style={{ background: '#F59E0B', fontSize: '0.75rem', padding: '2px 8px' }}>{alerts.waiting.length}</span>
+                  </div>
+                  <div className="alert-list">
+                    {alerts.waiting.slice(0, 3).map((visit, idx) => (
+                      <div key={idx} className="alert-item">
+                        <span className="alert-text">Visit #{visit.visitId.slice(-8)}</span>
+                        <button className="alert-btn" onClick={() => navigate(`/results/${visit.visitId}`)}>
+                          Enter Results
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Unpaid Invoices */}
+              {alerts.unpaid.length > 0 && (
+                <div className="alert-section" style={{ borderLeftColor: '#EF4444' }}>
+                  <div className="alert-header">
+                    <XCircle size={16} color="#EF4444" />
+                    <span className="alert-title" style={{ color: '#EF4444' }}>Unpaid Invoices</span>
+                    <span className="count-badge" style={{ background: '#EF4444', fontSize: '0.75rem', padding: '2px 8px' }}>{alerts.unpaid.length}</span>
+                  </div>
+                  <div className="alert-list">
+                    {alerts.unpaid.slice(0, 3).map((visit, idx) => (
+                      <div key={idx} className="alert-item">
+                        <span className="alert-text">Visit #{visit.visitId.slice(-8)}</span>
+                        <button className="alert-btn" onClick={() => navigate(`/patients/${visit.visitId}`)}>
+                          View Details
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pending Reports */}
+              {alerts.pendingResults.length > 0 && (
+                <div className="alert-section" style={{ borderLeftColor: '#3B82F6' }}>
+                  <div className="alert-header">
+                    <FileText size={16} color="#3B82F6" />
+                    <span className="alert-title" style={{ color: '#3B82F6' }}>Pending Reports</span>
+                    <span className="count-badge" style={{ background: '#3B82F6', fontSize: '0.75rem', padding: '2px 8px' }}>{alerts.pendingResults.length}</span>
+                  </div>
+                  <div className="alert-list">
+                    {alerts.pendingResults.slice(0, 3).map((visit, idx) => (
+                      <div key={idx} className="alert-item">
+                        <span className="alert-text">Visit #{visit.visitId.slice(-8)}</span>
+                        <button className="alert-btn" onClick={() => navigate(`/results/${visit.visitId}`)}>
+                          Generate
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No Alerts */}
+              {alerts.waiting.length === 0 && alerts.unpaid.length === 0 && alerts.pendingResults.length === 0 && (
+                <div className="empty-state-small">
+                  <CheckCircle size={48} color="#10B981" />
+                  <p style={{ marginTop: '8px', color: '#10B981', fontWeight: '600' }}>All caught up!</p>
+                </div>
+              )}
+            </div>
+          </Card>
+
           {/* Staff Activity */}
           <Card className="staff-activity-card">
             <div className="card-header">

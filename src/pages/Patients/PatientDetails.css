@@ -4,16 +4,18 @@
   padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  height: calc(100vh - 60px);
-  overflow-y: auto;
+  gap: var(--space-3);
+  height: 100vh; /* Fixed viewport height */
+  overflow: hidden; /* No scrolling */
 }
 
 .patient-details-grid {
   display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: var(--space-4);
+  grid-template-columns: 1fr 380px; /* Smaller sidebar */
+  gap: var(--space-3);
   align-items: flex-start;
+  flex: 1;
+  overflow: hidden; /* Prevent overflow */
 }
 
 .patient-side-column {
@@ -23,11 +25,73 @@
 }
 
 .page-header {
-  margin-bottom: var(--space-4);
+  margin-bottom: 0; /* Remove bottom margin */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-/* Patient Info Card */
+/* Header Quick Action Icons - Compact & Modern */
+.header-quick-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.icon-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px; /* Smaller icons */
+  height: 36px;
+  border-radius: 8px; /* Rounded corners */
+  border: 1.5px solid var(--border);
+  background: white;
+  color: var(--primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.icon-action-btn:hover:not(:disabled) {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.icon-action-btn.success {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.icon-action-btn.success:hover:not(:disabled) {
+  background: var(--success);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.icon-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.icon-action-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Patient Info Card - Scrollable */
 .patient-info-card {
+  max-height: calc(100vh - 180px); /* Fit within viewport */
+  overflow-y: auto; /* Allow scrolling if needed */
+  background: white;
+  border-radius: 8px;
 }
 
 .info-grid {
@@ -40,9 +104,9 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2);
   background: #F8FAFC;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid #E5E5E5;
   transition: var(--transition);
 }
@@ -76,7 +140,7 @@
 }
 
 .info-label {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   color: #666;
   font-weight: 500;
   text-transform: uppercase;
@@ -84,7 +148,7 @@
 }
 
 .info-value {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--text);
   font-weight: 600;
 }
@@ -202,10 +266,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  max-height: 400px; /* Limit button area height */
+  overflow-y: auto;
 }
 
 /* Actions Card */
 .actions-card {
+  padding: var(--space-4);
+  background: white;
 }
 
 .action-grid {

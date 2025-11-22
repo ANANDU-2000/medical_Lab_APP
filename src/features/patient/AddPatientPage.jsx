@@ -20,6 +20,7 @@ const AddPatientPage = () => {
     age: '',
     gender: '',
     phone: '',
+    email: '', // Added email field
     address: '',
     referredBy: ''
   });
@@ -362,32 +363,32 @@ const AddPatientPage = () => {
           
           <div className="form-field">
             <label>Test Profiles (Select Multiple)</label>
-            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '8px' }}>
+            <div className="profile-select-pills">
               {profiles.filter(p => p.active).length === 0 ? (
-                <p style={{ color: '#64748B', fontSize: '0.875rem', padding: '8px' }}>No profiles available</p>
+                <p className="no-profiles-msg">No profiles available</p>
               ) : (
-                profiles.filter(p => p.active).map(p => (
-                  <label key={p.profileId} style={{ display: 'flex', alignItems: 'center', padding: '6px', cursor: 'pointer', borderRadius: '4px', marginBottom: '4px' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#F8FAFC'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                    <input
-                      type="checkbox"
-                      checked={selectedProfiles.includes(p.profileId)}
-                      onChange={() => handleProfileToggle(p.profileId)}
-                      style={{ marginRight: '8px', cursor: 'pointer', accentColor: '#2563EB' }}
-                    />
-                    <span style={{ fontSize: '0.875rem', color: '#0F172A' }}>
-                      {p.name}
-                      <span style={{ color: '#64748B', marginLeft: '8px' }}>({p.tests?.length || 0} tests)</span>
-                    </span>
-                  </label>
-                ))
+                profiles.filter(p => p.active).map(p => {
+                  const isSelected = selectedProfiles.includes(p.profileId);
+                  return (
+                    <button
+                      key={p.profileId}
+                      type="button"
+                      className={`profile-pill ${isSelected ? 'selected' : ''}`}
+                      onClick={() => handleProfileToggle(p.profileId)}
+                    >
+                      <span className="profile-name">{p.name}</span>
+                      <span className="profile-count">({p.tests?.length || 0} tests)</span>
+                      {isSelected && <span className="check-mark">✓</span>}
+                    </button>
+                  );
+                })
               )}
             </div>
             {selectedProfiles.length > 0 && (
-              <p style={{ fontSize: '0.75rem', color: '#2563EB', marginTop: '6px' }}>
-                ✓ {selectedProfiles.length} profile(s) selected
-              </p>
+              <div className="selected-summary">
+                <span className="summary-icon">✓</span>
+                <span>{selectedProfiles.length} profile(s) selected</span>
+              </div>
             )}
           </div>
           
@@ -432,6 +433,17 @@ const AddPatientPage = () => {
               value={patientData.phone}
               onChange={handleInputChange}
               placeholder="10-digit number"
+            />
+          </div>
+          
+          <div className="form-field">
+            <label>Email (Optional)</label>
+            <input
+              type="email"
+              name="email"
+              value={patientData.email}
+              onChange={handleInputChange}
+              placeholder="patient@example.com"
             />
           </div>
           
