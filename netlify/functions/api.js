@@ -1,6 +1,10 @@
 import express from 'express';
 import serverless from 'serverless-http';
 import cors from 'cors';
+import { connectDB } from './lib/db';
+import {
+  Patient, Visit, Result, Invoice, Settings, AuditLog, Profile, TestMaster
+} from './lib/models';
 
 const app = express();
 const router = express.Router();
@@ -9,168 +13,182 @@ const router = express.Router();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// In-memory storage (will be replaced with proper DB)
-let dataStore = {
-  patients: [],
-  testResults: [],
-  financialRecords: { revenue: [], expenses: [] },
-  activities: [],
-  settings: {},
-  users: []
-};
+// Connect to DB for every request (serverless)
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
 
 // Health check
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ===== SYNC (Load all data) =====
+router.get('/sync', async (req, res) => {
+  try {
+    const [patients, visits, results, invoices, settings, auditLogs, profiles, testsMaster] = await Promise.all([
+      Patient.find({}),
+      Visit.find({}),
+      Result.find({}),
+      Invoice.find({}),
+      Settings.findOne({}),
+      AuditLog.find({}),
+      Profile.find({}),
+      TestMaster.find({})
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        patients,
+        visits,
+        results,
+        invoices,
+        settings: settings || {},
+        auditLogs,
+        profiles,
+        testsMaster
+      }
+    });
+  } catch (error) {
+    console.error('Sync error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ===== PATIENTS =====
-router.get('/patients', (req, res) => {
-  res.json({ success: true, data: dataStore.patients });
-});
-
-router.post('/patients', (req, res) => {
-  const patient = { ...req.body, id: req.body.id || Date.now().toString() };
-  dataStore.patients.unshift(patient);
-  res.json({ success: true, data: patient });
-});
-
-router.put('/patients/:id', (req, res) => {
-  const { id } = req.params;
-  const index = dataStore.patients.findIndex(p => p.id === id);
-  if (index !== -1) {
-    dataStore.patients[index] = { ...dataStore.patients[index], ...req.body };
-    res.json({ success: true, data: dataStore.patients[index] });
-  } else {
-    res.status(404).json({ success: false, error: 'Patient not found' });
+router.get('/patients', async (req, res) => {
+  try {
+    const patients = await Patient.find({});
+    res.json({ success: true, data: patients });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-router.delete('/patients/:id', (req, res) => {
-  const { id } = req.params;
-  dataStore.patients = dataStore.patients.filter(p => p.id !== id);
-  res.json({ success: true });
-});
-
-// ===== TEST RESULTS =====
-router.get('/results', (req, res) => {
-  const { patientId } = req.query;
-  let results = dataStore.testResults;
-  if (patientId) {
-    results = results.filter(r => r.patientId === patientId);
-  }
-  res.json({ success: true, data: results });
-});
-
-router.post('/results', (req, res) => {
-  const result = { ...req.body, id: req.body.id || Date.now().toString() };
-  dataStore.testResults.push(result);
-  res.json({ success: true, data: result });
-});
-
-router.put('/results/:id', (req, res) => {
-  const { id } = req.params;
-  const index = dataStore.testResults.findIndex(r => r.id === id);
-  if (index !== -1) {
-    dataStore.testResults[index] = { ...dataStore.testResults[index], ...req.body };
-    res.json({ success: true, data: dataStore.testResults[index] });
-  } else {
-    res.status(404).json({ success: false, error: 'Result not found' });
+router.post('/patients', async (req, res) => {
+  try {
+    const patient = new Patient(req.body);
+    await patient.save();
+    res.json({ success: true, data: patient });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ===== FINANCIAL =====
-router.get('/financial/revenue', (req, res) => {
-  res.json({ success: true, data: dataStore.financialRecords.revenue });
-});
-
-router.post('/financial/revenue', (req, res) => {
-  const record = { ...req.body, id: req.body.id || Date.now().toString() };
-  dataStore.financialRecords.revenue.push(record);
-  res.json({ success: true, data: record });
-});
-
-router.get('/financial/expenses', (req, res) => {
-  res.json({ success: true, data: dataStore.financialRecords.expenses });
-});
-
-router.post('/financial/expenses', (req, res) => {
-  const record = { ...req.body, id: req.body.id || Date.now().toString() };
-  dataStore.financialRecords.expenses.push(record);
-  res.json({ success: true, data: record });
-});
-
-router.put('/financial/expenses/:id', (req, res) => {
-  const { id } = req.params;
-  const index = dataStore.financialRecords.expenses.findIndex(e => e.id === id);
-  if (index !== -1) {
-    dataStore.financialRecords.expenses[index] = { ...dataStore.financialRecords.expenses[index], ...req.body };
-    res.json({ success: true, data: dataStore.financialRecords.expenses[index] });
-  } else {
-    res.status(404).json({ success: false, error: 'Expense not found' });
+router.put('/patients/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const patient = await Patient.findOneAndUpdate({ patientId: id }, req.body, { new: true });
+    if (patient) {
+      res.json({ success: true, data: patient });
+    } else {
+      res.status(404).json({ success: false, error: 'Patient not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-router.delete('/financial/expenses/:id', (req, res) => {
-  const { id } = req.params;
-  dataStore.financialRecords.expenses = dataStore.financialRecords.expenses.filter(e => e.id !== id);
-  res.json({ success: true });
+router.delete('/patients/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Patient.findOneAndDelete({ patientId: id });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-// ===== ACTIVITIES =====
-router.get('/activities', (req, res) => {
-  const { staffId, patientId } = req.query;
-  let activities = dataStore.activities;
-  if (staffId) {
-    activities = activities.filter(a => a.staffId === staffId);
+// ===== VISITS =====
+router.get('/visits', async (req, res) => {
+  try {
+    const visits = await Visit.find({});
+    res.json({ success: true, data: visits });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
-  if (patientId) {
-    activities = activities.filter(a => a.patientId === patientId);
-  }
-  res.json({ success: true, data: activities });
 });
 
-router.post('/activities', (req, res) => {
-  const activity = { ...req.body, id: req.body.id || Date.now().toString() };
-  dataStore.activities.push(activity);
-  res.json({ success: true, data: activity });
+router.post('/visits', async (req, res) => {
+  try {
+    const visit = new Visit(req.body);
+    await visit.save();
+    res.json({ success: true, data: visit });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.put('/visits/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const visit = await Visit.findOneAndUpdate({ visitId: id }, req.body, { new: true });
+    res.json({ success: true, data: visit });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== RESULTS =====
+router.post('/results', async (req, res) => {
+  try {
+    // Check if result exists for this visit
+    const existing = await Result.findOne({ visitId: req.body.visitId });
+    if (existing) {
+      const updated = await Result.findOneAndUpdate({ visitId: req.body.visitId }, req.body, { new: true });
+      res.json({ success: true, data: updated });
+    } else {
+      const result = new Result(req.body);
+      await result.save();
+      res.json({ success: true, data: result });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== INVOICES =====
+router.post('/invoices', async (req, res) => {
+  try {
+    const invoice = new Invoice(req.body);
+    await invoice.save();
+    res.json({ success: true, data: invoice });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // ===== SETTINGS =====
-router.get('/settings', (req, res) => {
-  res.json({ success: true, data: dataStore.settings });
+router.put('/settings', async (req, res) => {
+  try {
+    const settings = await Settings.findOneAndUpdate({}, req.body, { new: true, upsert: true });
+    res.json({ success: true, data: settings });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-router.put('/settings', (req, res) => {
-  dataStore.settings = { ...dataStore.settings, ...req.body };
-  res.json({ success: true, data: dataStore.settings });
+// ===== PROFILES & TESTS =====
+router.post('/profiles', async (req, res) => {
+  try {
+    const profile = new Profile(req.body);
+    await profile.save();
+    res.json({ success: true, data: profile });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-// ===== USERS (AUTH) =====
-router.get('/users', (req, res) => {
-  res.json({ success: true, data: dataStore.users });
-});
-
-router.post('/users', (req, res) => {
-  const user = { ...req.body, id: req.body.id || Date.now().toString() };
-  dataStore.users.push(user);
-  res.json({ success: true, data: user });
-});
-
-// Bulk data sync endpoint
-router.post('/sync', (req, res) => {
-  const { patients, testResults, financialRecords, activities, settings, users } = req.body;
-  if (patients) dataStore.patients = patients;
-  if (testResults) dataStore.testResults = testResults;
-  if (financialRecords) dataStore.financialRecords = financialRecords;
-  if (activities) dataStore.activities = activities;
-  if (settings) dataStore.settings = settings;
-  if (users) dataStore.users = users;
-  res.json({ success: true, message: 'Data synced successfully' });
-});
-
-router.get('/sync', (req, res) => {
-  res.json({ success: true, data: dataStore });
+router.post('/tests', async (req, res) => {
+  try {
+    const test = new TestMaster(req.body);
+    await test.save();
+    res.json({ success: true, data: test });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 app.use('/api', router);

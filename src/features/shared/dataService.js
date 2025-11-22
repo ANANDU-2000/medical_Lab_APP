@@ -12,35 +12,70 @@ const STORAGE_KEYS = {
   AUDIT_LOGS: 'healit_audit_logs'
 };
 
+const API_URL = '/.netlify/functions/api';
+
+// Helper for API calls (fire and forget for mutations)
+const apiCall = async (endpoint, method, body) => {
+  try {
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    return await res.json();
+  } catch (error) {
+    console.error(`API Call ${method} ${endpoint} failed:`, error);
+    return null;
+  }
+};
+
 // Event dispatcher for real-time updates
 const dispatchDataUpdate = (type) => {
   window.dispatchEvent(new CustomEvent('healit-data-update', { detail: { type } }));
 };
 
 // Initialize seed data on first load
-export const initializeSeedData = () => {
-  // Check data version - force reload if structure changed
-  const currentVersion = '2.0'; // Updated to include full test objects in profiles
+export const initializeSeedData = async () => {
+  // Try to sync from server first
+  try {
+    console.log('Attempting to sync with server...');
+    const res = await apiCall('/sync', 'GET');
+    if (res && res.success && res.data) {
+      const { patients, visits, results, invoices, settings, profiles, testsMaster } = res.data;
+
+      if (patients.length) localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
+      if (visits.length) localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
+      if (results.length) localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(results));
+      if (invoices.length) localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices));
+      if (settings) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+      if (profiles.length) localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
+      if (testsMaster.length) localStorage.setItem(STORAGE_KEYS.TESTS_MASTER, JSON.stringify(testsMaster));
+
+      console.log('Synced with server successfully');
+      dispatchDataUpdate('all');
+      return; // Exit if sync successful
+    }
+  } catch (e) {
+    console.warn('Server sync failed, falling back to local seed data', e);
+  }
+
+  // Fallback to local seed data logic...
+  const currentVersion = '2.0';
   const storedVersion = localStorage.getItem('healit_data_version');
-  
-  // If version mismatch, clear profiles to reload with new structure
+
   if (storedVersion !== currentVersion) {
     console.log('Data structure updated, reloading profiles...');
     localStorage.removeItem(STORAGE_KEYS.PROFILES);
     localStorage.removeItem(STORAGE_KEYS.TESTS_MASTER);
     localStorage.setItem('healit_data_version', currentVersion);
   }
-  
-  // Initialize profiles with full test data
+
   if (!localStorage.getItem(STORAGE_KEYS.PROFILES)) {
     localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(PROFILES));
   }
-  
-  // Initialize TESTS_MASTER from all profile tests
+
   if (!localStorage.getItem(STORAGE_KEYS.TESTS_MASTER)) {
     const testMap = new Map();
-    
-    // Extract all unique tests from profiles
     PROFILES.forEach(profile => {
       if (profile.tests && Array.isArray(profile.tests)) {
         profile.tests.forEach(test => {
@@ -49,16 +84,16 @@ export const initializeSeedData = () => {
               testId: test.testId,
               name: test.name,
               description: test.description || '',
-              code: test.testId, // Use testId as code
+              code: test.testId,
               unit: test.unit || '',
               bioReference: test.bioReference || '',
-              refLow: null, // Will be parsed from bioReference if needed
+              refLow: null,
               refHigh: null,
               refText: test.bioReference || '',
-              inputType: 'number', // Default to number input
+              inputType: 'number',
               dropdownOptions: [],
               price: test.price || 0,
-              category: test.testId.match(/^([A-Z]+)/)?.[1] || 'General', // Extract category from testId (e.g., CBC, LFT, KFT)
+              category: test.testId.match(/^([A-Z]+)/)?.[1] || 'General',
               active: true,
               createdAt: new Date().toISOString()
             });
@@ -66,12 +101,11 @@ export const initializeSeedData = () => {
         });
       }
     });
-    
+
     const testsMaster = Array.from(testMap.values());
     localStorage.setItem(STORAGE_KEYS.TESTS_MASTER, JSON.stringify(testsMaster));
-    console.log(`Initialized ${testsMaster.length} tests in TESTS_MASTER`);
   }
-  
+
   if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
     const defaultSettings = {
       allowStaffInlineCreate: false,
@@ -87,7 +121,6 @@ export const initializeSeedData = () => {
 
 // Clear all data and start fresh
 export const clearAllData = () => {
-  // Remove all data
   localStorage.removeItem(STORAGE_KEYS.PATIENTS);
   localStorage.removeItem(STORAGE_KEYS.VISITS);
   localStorage.removeItem(STORAGE_KEYS.RESULTS);
@@ -99,13 +132,9 @@ export const clearAllData = () => {
   localStorage.removeItem('healit_financial_categories');
   localStorage.removeItem('healit_financial_reminders');
   localStorage.removeItem('healit_data_version');
-  
-  // Re-initialize with fresh data by calling initializeSeedData
+
   initializeSeedData();
-  
-  // Dispatch update event
   dispatchDataUpdate('all');
-  
   return true;
 };
 
@@ -113,9 +142,9 @@ export const clearAllData = () => {
 export const getTestsMaster = (searchTerm = '') => {
   const tests = JSON.parse(localStorage.getItem(STORAGE_KEYS.TESTS_MASTER) || '[]');
   if (!searchTerm) return tests.filter(t => t.active);
-  
+
   const term = searchTerm.toLowerCase();
-  return tests.filter(t => 
+  return tests.filter(t =>
     t.active && (
       t.name.toLowerCase().includes(term) ||
       t.code.toLowerCase().includes(term) ||
@@ -139,6 +168,10 @@ export const addTestToMaster = (test) => {
   };
   tests.push(newTest);
   localStorage.setItem(STORAGE_KEYS.TESTS_MASTER, JSON.stringify(tests));
+
+  // Sync to Server
+  apiCall('/tests', 'POST', newTest);
+
   return newTest;
 };
 
@@ -156,13 +189,13 @@ export const getProfileById = (profileId) => {
 export const getProfileWithTests = (profileId) => {
   const profile = getProfileById(profileId);
   if (!profile) return null;
-  
+
   const testsMaster = JSON.parse(localStorage.getItem(STORAGE_KEYS.TESTS_MASTER) || '[]');
   const tests = profile.testIds.map(testId => {
     const test = testsMaster.find(t => t.testId === testId);
     return test || null;
   }).filter(Boolean);
-  
+
   return { ...profile, tests };
 };
 
@@ -176,6 +209,10 @@ export const addProfile = (profileData) => {
   };
   profiles.push(newProfile);
   localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
+
+  // Sync to Server
+  apiCall('/profiles', 'POST', newProfile);
+
   return newProfile;
 };
 
@@ -199,6 +236,10 @@ export const addPatient = (patientData) => {
   patients.push(newPatient);
   localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
   dispatchDataUpdate('patients');
+
+  // Sync to Server
+  apiCall('/patients', 'POST', newPatient);
+
   return newPatient;
 };
 
@@ -209,6 +250,10 @@ export const updatePatient = (patientId, updates) => {
     patients[index] = { ...patients[index], ...updates, updatedAt: new Date().toISOString() };
     localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
     dispatchDataUpdate('patients');
+
+    // Sync to Server
+    apiCall(`/patients/${patientId}`, 'PUT', patients[index]);
+
     return patients[index];
   }
   return null;
@@ -219,34 +264,28 @@ export const deletePatient = (patientId) => {
   const visits = getVisits();
   const results = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESULTS) || '[]');
   const invoices = JSON.parse(localStorage.getItem(STORAGE_KEYS.INVOICES) || '[]');
-  
-  // Filter out patient
+
   const updatedPatients = patients.filter(p => p.patientId !== patientId);
-  
-  // Filter out all visits for this patient
   const patientVisits = visits.filter(v => v.patientId === patientId);
   const visitIds = patientVisits.map(v => v.visitId);
   const updatedVisits = visits.filter(v => v.patientId !== patientId);
-  
-  // Filter out all results for this patient's visits
   const updatedResults = results.filter(r => !visitIds.includes(r.visitId));
-  
-  // Filter out all invoices for this patient's visits
   const updatedInvoices = invoices.filter(i => !visitIds.includes(i.visitId));
-  
-  // Save updated data
+
   localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(updatedPatients));
   localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(updatedVisits));
   localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(updatedResults));
   localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(updatedInvoices));
-  
-  // Dispatch update event
+
   dispatchDataUpdate('patients');
-  
+
+  // Sync to Server
+  apiCall(`/patients/${patientId}`, 'DELETE');
+
   return true;
 };
 
-// Visit Operations (with Snapshot)
+// Visit Operations
 export const getVisits = () => {
   return JSON.parse(localStorage.getItem(STORAGE_KEYS.VISITS) || '[]');
 };
@@ -276,6 +315,10 @@ export const createVisit = (visitData) => {
   visits.push(newVisit);
   localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
   dispatchDataUpdate('visits');
+
+  // Sync to Server
+  apiCall('/visits', 'POST', newVisit);
+
   return newVisit;
 };
 
@@ -286,30 +329,31 @@ export const updateVisit = (visitId, updates) => {
     visits[index] = { ...visits[index], ...updates, updatedAt: new Date().toISOString() };
     localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
     dispatchDataUpdate('visits');
+
+    // Sync to Server
+    apiCall(`/visits/${visitId}`, 'PUT', visits[index]);
+
     return visits[index];
   }
   return null;
 };
 
-// PDF Generation with tracking
 export const markPDFGenerated = (visitId) => {
-  return updateVisit(visitId, { 
-    pdfGenerated: true, 
-    pdfGeneratedAt: new Date().toISOString() 
+  return updateVisit(visitId, {
+    pdfGenerated: true,
+    pdfGeneratedAt: new Date().toISOString()
   });
 };
 
-// Invoice Generation with automatic payment marking
 export const markInvoiceGenerated = (visitId) => {
-  return updateVisit(visitId, { 
-    invoiceGenerated: true, 
+  return updateVisit(visitId, {
+    invoiceGenerated: true,
     invoiceGeneratedAt: new Date().toISOString(),
-    paymentStatus: 'paid', // Auto-mark as paid when invoice generated
+    paymentStatus: 'paid',
     paidAt: new Date().toISOString()
   });
 };
 
-// Manual payment status update
 export const updatePaymentStatus = (visitId, status) => {
   const updates = { paymentStatus: status };
   if (status === 'paid') {
@@ -321,39 +365,36 @@ export const updatePaymentStatus = (visitId, status) => {
 // Result Operations
 export const saveResults = (visitId, results) => {
   const allResults = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESULTS) || '[]');
-  
-  // Remove old results for this visit
   const filtered = allResults.filter(r => r.visitId !== visitId);
-  
-  // Add new results
+
   const newResults = {
     visitId,
     results,
     savedAt: new Date().toISOString()
   };
   filtered.push(newResults);
-  
+
   localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(filtered));
-  
-  // CRITICAL FIX: DO NOT auto-update status to 'results_entered'
-  // Status changes only when Generate Report is explicitly clicked!
-  // This was causing premature status updates on auto-save
-  
+
+  // Sync to Server
+  apiCall('/results', 'POST', newResults);
+
   return newResults;
 };
 
 export const updateVisitResults = (visitId, testsWithResults) => {
   const visits = getVisits();
   const visitIndex = visits.findIndex(v => v.visitId === visitId);
-  
+
   if (visitIndex !== -1) {
     visits[visitIndex].tests = testsWithResults;
     visits[visitIndex].updatedAt = new Date().toISOString();
-    // CRITICAL FIX: DO NOT auto-update status here!
-    // Status should only change to 'results_entered' when Generate Report is clicked
-    // NOT when auto-saving results!
     localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
     dispatchDataUpdate('visits');
+
+    // Sync to Server
+    apiCall(`/visits/${visitId}`, 'PUT', visits[visitIndex]);
+
     return visits[visitIndex];
   }
   return null;
@@ -374,6 +415,10 @@ export const createInvoice = (invoiceData) => {
   };
   invoices.push(newInvoice);
   localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices));
+
+  // Sync to Server
+  apiCall('/invoices', 'POST', newInvoice);
+
   return newInvoice;
 };
 
@@ -391,6 +436,10 @@ export const updateSettings = (updates) => {
   const settings = getSettings();
   const newSettings = { ...settings, ...updates };
   localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
+
+  // Sync to Server
+  apiCall('/settings', 'PUT', newSettings);
+
   return newSettings;
 };
 
@@ -411,7 +460,7 @@ export const searchTests = (searchTerm) => {
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve(getTestsMaster(searchTerm));
-    }, 300); // 300ms debounce
+    }, 300);
   });
 };
 
