@@ -39,15 +39,14 @@ export class DataMigrationService {
     };
 
     return {
-      patients: getData('patient-storage')?.state?.patients || [],
-      testResults: getData('test-result-storage')?.state?.results || [],
-      financialRecords: {
-        revenue: getData('financial-storage')?.state?.revenue || [],
-        expenses: getData('financial-storage')?.state?.expenses || []
-      },
-      activities: getData('activity-storage')?.state?.activities || [],
-      settings: getData('settings-storage')?.state || {},
-      users: getData('healit_users') || []
+      patients: getData('healit_patients') || [],
+      visits: getData('healit_visits') || [],
+      results: getData('healit_results') || [],
+      invoices: getData('healit_invoices') || [],
+      settings: getData('healit_settings') || {},
+      profiles: getData('healit_profiles') || [],
+      testsMaster: getData('healit_tests_master') || [],
+      auditLogs: getData('healit_audit_logs') || []
     };
   }
 
@@ -61,12 +60,11 @@ export class DataMigrationService {
       const localData = this.getLocalData();
 
       // Check if there's any data to migrate
-      const hasData = 
+      const hasData =
         localData.patients.length > 0 ||
-        localData.testResults.length > 0 ||
-        localData.financialRecords.revenue.length > 0 ||
-        localData.financialRecords.expenses.length > 0 ||
-        localData.activities.length > 0;
+        localData.visits.length > 0 ||
+        localData.results.length > 0 ||
+        localData.invoices.length > 0;
 
       if (!hasData) {
         console.log('ℹ️ No local data to migrate');
@@ -103,40 +101,41 @@ export class DataMigrationService {
       if (response.success && response.data) {
         const data = response.data;
 
-        // Update localStorage with backend data
-        const updateStorage = (key, stateData) => {
-          try {
-            const existing = localStorage.getItem(key);
-            const parsed = existing ? JSON.parse(existing) : { state: {}, version: 1 };
-            parsed.state = { ...parsed.state, ...stateData };
-            localStorage.setItem(key, JSON.stringify(parsed));
-          } catch (error) {
-            console.error(`Error updating ${key}:`, error);
-          }
-        };
-
-        if (data.patients) {
-          updateStorage('patient-storage', { patients: data.patients });
+        // Update localStorage with backend data directly
+        if (data.patients && data.patients.length > 0) {
+          localStorage.setItem('healit_patients', JSON.stringify(data.patients));
         }
 
-        if (data.testResults) {
-          updateStorage('test-result-storage', { results: data.testResults });
+        if (data.visits && data.visits.length > 0) {
+          localStorage.setItem('healit_visits', JSON.stringify(data.visits));
         }
 
-        if (data.financialRecords) {
-          updateStorage('financial-storage', {
-            revenue: data.financialRecords.revenue || [],
-            expenses: data.financialRecords.expenses || []
-          });
+        if (data.results && data.results.length > 0) {
+          localStorage.setItem('healit_results', JSON.stringify(data.results));
         }
 
-        if (data.activities) {
-          updateStorage('activity-storage', { activities: data.activities });
+        if (data.invoices && data.invoices.length > 0) {
+          localStorage.setItem('healit_invoices', JSON.stringify(data.invoices));
         }
 
         if (data.settings) {
-          updateStorage('settings-storage', data.settings);
+          localStorage.setItem('healit_settings', JSON.stringify(data.settings));
         }
+
+        if (data.profiles && data.profiles.length > 0) {
+          localStorage.setItem('healit_profiles', JSON.stringify(data.profiles));
+        }
+
+        if (data.testsMaster && data.testsMaster.length > 0) {
+          localStorage.setItem('healit_tests_master', JSON.stringify(data.testsMaster));
+        }
+
+        if (data.auditLogs && data.auditLogs.length > 0) {
+          localStorage.setItem('healit_audit_logs', JSON.stringify(data.auditLogs));
+        }
+
+        // Dispatch event to refresh UI
+        window.dispatchEvent(new CustomEvent('healit-data-update', { detail: { type: 'all' } }));
 
         console.log('✅ Data synced from backend successfully');
         return { success: true };

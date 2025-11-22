@@ -57,6 +57,59 @@ router.get('/sync', async (req, res) => {
   }
 });
 
+// POST /sync - Bulk upload data from client
+router.post('/sync', async (req, res) => {
+  try {
+    const { patients, visits, results, invoices, settings, profiles, testsMaster, auditLogs } = req.body;
+
+    // Bulk insert/update data
+    if (patients && patients.length > 0) {
+      await Promise.all(patients.map(p =>
+        Patient.findOneAndUpdate({ patientId: p.patientId }, p, { upsert: true, new: true })
+      ));
+    }
+
+    if (visits && visits.length > 0) {
+      await Promise.all(visits.map(v =>
+        Visit.findOneAndUpdate({ visitId: v.visitId }, v, { upsert: true, new: true })
+      ));
+    }
+
+    if (results && results.length > 0) {
+      await Promise.all(results.map(r =>
+        Result.findOneAndUpdate({ visitId: r.visitId }, r, { upsert: true, new: true })
+      ));
+    }
+
+    if (invoices && invoices.length > 0) {
+      await Promise.all(invoices.map(i =>
+        Invoice.findOneAndUpdate({ invoiceId: i.invoiceId }, i, { upsert: true, new: true })
+      ));
+    }
+
+    if (profiles && profiles.length > 0) {
+      await Promise.all(profiles.map(p =>
+        Profile.findOneAndUpdate({ profileId: p.profileId }, p, { upsert: true, new: true })
+      ));
+    }
+
+    if (testsMaster && testsMaster.length > 0) {
+      await Promise.all(testsMaster.map(t =>
+        TestMaster.findOneAndUpdate({ testId: t.testId }, t, { upsert: true, new: true })
+      ));
+    }
+
+    if (settings) {
+      await Settings.findOneAndUpdate({}, settings, { upsert: true, new: true });
+    }
+
+    res.json({ success: true, message: 'Data synced successfully' });
+  } catch (error) {
+    console.error('Bulk sync error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ===== PATIENTS =====
 router.get('/patients', async (req, res) => {
   try {

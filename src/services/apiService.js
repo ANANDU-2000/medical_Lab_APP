@@ -3,9 +3,9 @@
  * Handles all HTTP requests to backend
  */
 
-const API_BASE_URL = import.meta.env.PROD 
-  ? '/api'  // Production: Netlify Functions
-  : 'http://localhost:8888/api';  // Development: Netlify Dev
+const API_BASE_URL = import.meta.env.PROD
+  ? '/.netlify/functions/api'  // Production: Netlify Functions
+  : 'http://localhost:8888/.netlify/functions/api';  // Development: Netlify Dev
 
 class ApiService {
   constructor() {
