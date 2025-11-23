@@ -310,20 +310,73 @@ export const generateLabReportPDF = async (reportData, options = {}) => { // CHA
 
 /**
  * Determine test status based on value and reference
+ * ENHANCED: Handles multiple field naming conventions and parses bioReference
  */
 const getTestStatus = (test) => {
-  if (test.type === 'text' || test.type === 'dropdown') return 'NORMAL';
+  // Skip status check for text/dropdown types
+  if (test.type === 'text' || test.type === 'dropdown' || test.inputType_snapshot === 'text' || test.inputType_snapshot === 'select') {
+    return 'NORMAL';
+  }
   
   const value = parseFloat(test.value);
   if (isNaN(value)) return 'NORMAL';
   
-  const low = parseFloat(test.low || test.refLow);
-  const high = parseFloat(test.high || test.refHigh);
+  // Try to get numeric reference ranges from multiple possible field names
+  let refLow = parseFloat(test.low || test.refLow || test.refLow_snapshot);
+  let refHigh = parseFloat(test.high || test.refHigh || test.refHigh_snapshot);
   
-  if (!isNaN(low) && value < low) return 'LOW';
-  if (!isNaN(high) && value > high) return 'HIGH';
+  // If numeric ranges not available, try to parse from bioReference text
+  if (isNaN(refLow) || isNaN(refHigh)) {
+    const bioRef = test.bioReference || test.bioReference_snapshot || test.refText || test.refText_snapshot || '';
+    const parsed = parseBioReference(bioRef);
+    if (parsed) {
+      refLow = isNaN(refLow) ? parsed.min : refLow;
+      refHigh = isNaN(refHigh) ? parsed.max : refHigh;
+    }
+  }
+  
+  // Check if value is outside range
+  if (!isNaN(refLow) && value < refLow) return 'LOW';
+  if (!isNaN(refHigh) && value > refHigh) return 'HIGH';
   
   return 'NORMAL';
+};
+
+/**
+ * Parse bioReference string to extract min/max values
+ * Examples: "30-100", "7.94 - 20.07", "< 200", "> 40", "Adult: 13-17"
+ */
+const parseBioReference = (bioRef) => {
+  if (!bioRef || typeof bioRef !== 'string') return null;
+  
+  const s = bioRef.trim();
+  
+  // Handle "less than" format: <200, < 200
+  const ltMatch = s.match(/^<?\s*<\s*([\d.]+)/);
+  if (ltMatch) {
+    return { min: -Infinity, max: parseFloat(ltMatch[1]) };
+  }
+  
+  // Handle "greater than" format: >40, > 40
+  const gtMatch = s.match(/^>?\s*>\s*([\d.]+)/);
+  if (gtMatch) {
+    return { min: parseFloat(gtMatch[1]), max: Infinity };
+  }
+  
+  // Handle range format: "30-100", "7.94 - 20.07", "Adult: 13-17"
+  // Remove common prefixes like "Adult:", "Normal:", etc.
+  const cleanStr = s.replace(/^(Adult|Male|Female|Normal|Child):\s*/i, '');
+  
+  // Match range with dash/hyphen/en-dash: "30-100", "7.94 - 20.07"
+  const rangeMatch = cleanStr.match(/([\d.]+)\s*[-–—]\s*([\d.]+)/);
+  if (rangeMatch) {
+    return { 
+      min: parseFloat(rangeMatch[1]), 
+      max: parseFloat(rangeMatch[2]) 
+    };
+  }
+  
+  return null;
 };
 
 /**
