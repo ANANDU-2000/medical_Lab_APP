@@ -14,20 +14,20 @@ const STORAGE_KEYS = {
 
 const API_URL = '/.netlify/functions/api';
 
-// Helper for API calls (fire and forget for mutations)
-const apiCall = async (endpoint, method, body) => {
-  try {
-    const res = await fetch(`${API_URL}${endpoint}`, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined
-    });
-    return await res.json();
-  } catch (error) {
-    console.error(`API Call ${method} ${endpoint} failed:`, error);
-    return null;
-  }
-};
+// Helper for API calls (DISABLED - Using Firebase Firestore instead)
+// const apiCall = async (endpoint, method, body) => {
+//   try {
+//     const res = await fetch(`${API_URL}${endpoint}`, {
+//       method,
+//       headers: { 'Content-Type': 'application/json' },
+//       body: body ? JSON.stringify(body) : undefined
+//     });
+//     return await res.json();
+//   } catch (error) {
+//     console.error(`API Call ${method} ${endpoint} failed:`, error);
+//     return null;
+//   }
+// };
 
 // Event dispatcher for real-time updates
 const dispatchDataUpdate = (type) => {
@@ -36,29 +36,9 @@ const dispatchDataUpdate = (type) => {
 
 // Initialize seed data on first load
 export const initializeSeedData = async () => {
-  // Try to sync from server first
-  try {
-    console.log('Attempting to sync with server...');
-    const res = await apiCall('/sync', 'GET');
-    if (res && res.success && res.data) {
-      const { patients, visits, results, invoices, settings, profiles, testsMaster } = res.data;
-
-      if (patients.length) localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
-      if (visits.length) localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
-      if (results.length) localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(results));
-      if (invoices.length) localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices));
-      if (settings) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-      if (profiles.length) localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
-      if (testsMaster.length) localStorage.setItem(STORAGE_KEYS.TESTS_MASTER, JSON.stringify(testsMaster));
-
-      console.log('Synced with server successfully');
-      dispatchDataUpdate('all');
-      return; // Exit if sync successful
-    }
-  } catch (e) {
-    console.warn('Server sync failed, falling back to local seed data', e);
-  }
-
+  // DISABLED: Server sync - Using Firebase instead
+  // The app now uses Firebase Firestore, so we skip Netlify Functions API calls
+  
   // Fallback to local seed data logic...
   const currentVersion = '2.0';
   const storedVersion = localStorage.getItem('healit_data_version');
@@ -169,8 +149,8 @@ export const addTestToMaster = (test) => {
   tests.push(newTest);
   localStorage.setItem(STORAGE_KEYS.TESTS_MASTER, JSON.stringify(tests));
 
-  // Sync to Server
-  apiCall('/tests', 'POST', newTest);
+  // Sync to Server (DISABLED - Using Firebase)
+  // apiCall('/tests', 'POST', newTest);
 
   return newTest;
 };
@@ -210,8 +190,8 @@ export const addProfile = (profileData) => {
   profiles.push(newProfile);
   localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
 
-  // Sync to Server
-  apiCall('/profiles', 'POST', newProfile);
+  // Sync to Server (DISABLED - Using Firebase)
+  // apiCall('/profiles', 'POST', newProfile);
 
   return newProfile;
 };
@@ -237,8 +217,8 @@ export const addPatient = (patientData) => {
   localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
   dispatchDataUpdate('patients');
 
-  // Sync to Server
-  apiCall('/patients', 'POST', newPatient);
+  // Sync to Server (DISABLED - Using Firebase)
+  // apiCall('/patients', 'POST', newPatient);
 
   return newPatient;
 };
@@ -251,8 +231,8 @@ export const updatePatient = (patientId, updates) => {
     localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
     dispatchDataUpdate('patients');
 
-    // Sync to Server
-    apiCall(`/patients/${patientId}`, 'PUT', patients[index]);
+    // Sync to Server (DISABLED - Using Firebase)
+    // apiCall(`/patients/${patientId}`, 'PUT', patients[index]);
 
     return patients[index];
   }
@@ -279,8 +259,8 @@ export const deletePatient = (patientId) => {
 
   dispatchDataUpdate('patients');
 
-  // Sync to Server
-  apiCall(`/patients/${patientId}`, 'DELETE');
+  // Sync to Server (DISABLED - Using Firebase)
+  // apiCall(`/patients/${patientId}`, 'DELETE');
 
   return true;
 };
@@ -316,8 +296,8 @@ export const createVisit = (visitData) => {
   localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
   dispatchDataUpdate('visits');
 
-  // Sync to Server
-  apiCall('/visits', 'POST', newVisit);
+  // Sync to Server (DISABLED - Using Firebase)
+  // apiCall('/visits', 'POST', newVisit);
 
   return newVisit;
 };
@@ -330,8 +310,8 @@ export const updateVisit = (visitId, updates) => {
     localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
     dispatchDataUpdate('visits');
 
-    // Sync to Server
-    apiCall(`/visits/${visitId}`, 'PUT', visits[index]);
+    // Sync to Server (DISABLED - Using Firebase)
+    // apiCall(`/visits/${visitId}`, 'PUT', visits[index]);
 
     return visits[index];
   }
@@ -376,8 +356,8 @@ export const saveResults = (visitId, results) => {
 
   localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(filtered));
 
-  // Sync to Server
-  apiCall('/results', 'POST', newResults);
+  // Sync to Server (DISABLED - Using Firebase)
+  // apiCall('/results', 'POST', newResults);
 
   return newResults;
 };
@@ -392,8 +372,8 @@ export const updateVisitResults = (visitId, testsWithResults) => {
     localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
     dispatchDataUpdate('visits');
 
-    // Sync to Server
-    apiCall(`/visits/${visitId}`, 'PUT', visits[visitIndex]);
+    // Sync to Server (DISABLED - Using Firebase)
+    // apiCall(`/visits/${visitId}`, 'PUT', visits[visitIndex]);
 
     return visits[visitIndex];
   }
@@ -416,8 +396,8 @@ export const createInvoice = (invoiceData) => {
   invoices.push(newInvoice);
   localStorage.setItem(STORAGE_KEYS.INVOICES, JSON.stringify(invoices));
 
-  // Sync to Server
-  apiCall('/invoices', 'POST', newInvoice);
+  // Sync to Server (DISABLED - Using Firebase)
+  // apiCall('/invoices', 'POST', newInvoice);
 
   return newInvoice;
 };
@@ -437,8 +417,8 @@ export const updateSettings = (updates) => {
   const newSettings = { ...settings, ...updates };
   localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
 
-  // Sync to Server
-  apiCall('/settings', 'PUT', newSettings);
+  // Sync to Server (DISABLED - Using Firebase)
+  // apiCall('/settings', 'PUT', newSettings);
 
   return newSettings;
 };
