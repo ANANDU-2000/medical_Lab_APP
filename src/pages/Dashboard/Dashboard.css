@@ -576,6 +576,7 @@
 @media (max-width: 1024px) {
   .dashboard {
     padding: var(--space-4);
+    overflow-x: hidden;
   }
   
   .quick-actions-grid {
@@ -590,6 +591,8 @@
 @media (max-width: 768px) {
   .dashboard {
     padding: var(--space-3);
+    overflow-x: hidden;
+    width: 100%;
   }
   
   .dashboard-header h1 {
@@ -606,22 +609,22 @@
   }
   
   .action-card {
-    padding: var(--space-4);
-    min-height: 120px;
+    padding: var(--space-3);
+    min-height: 110px;
   }
   
   .action-icon {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     margin-bottom: var(--space-2);
   }
   
   .action-card h3 {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
   }
   
   .action-card p {
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
   }
 
   .metrics-grid {
@@ -656,7 +659,8 @@
 
 @media (max-width: 640px) {
   .dashboard {
-    padding: var(--space-2);
+    padding: 12px;
+    overflow-x: hidden;
   }
   
   .dashboard-header h1 {
@@ -673,26 +677,26 @@
 
   .quick-actions-grid {
     grid-template-columns: 1fr;
-    gap: var(--space-2);
+    gap: 10px;
   }
   
   .action-card {
-    padding: var(--space-3);
-    min-height: 100px;
+    padding: 16px;
+    min-height: 90px;
     flex-direction: row;
     text-align: left;
-    gap: var(--space-3);
+    gap: 12px;
   }
   
   .action-icon {
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
     margin: 0;
     flex-shrink: 0;
   }
   
   .action-card h3 {
-    font-size: 1rem;
+    font-size: 0.9375rem;
   }
   
   .action-card p {
@@ -704,7 +708,7 @@
   }
   
   .metric-card {
-    padding: var(--space-3);
+    padding: 16px;
   }
 
   .metric-value {
