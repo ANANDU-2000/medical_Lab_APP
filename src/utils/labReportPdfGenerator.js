@@ -167,19 +167,22 @@ export const generateLabReportPDF = async (reportData, options = {}) => { // CHA
     
     // Determine if value should be highlighted (abnormal)
     const isBold = status !== 'NORMAL' && value !== '-';
-    const textColor = getStatusColor(status);
-    const bgColor = getStatusBgColor(status);
+    
+    // ENHANCED: Larger font and bolder for abnormal values - ALL BLACK, NO COLORS
+    const fontSize = isBold ? 13 : 10; // Increased to 13 for better visibility
+    const fontStyle = isBold ? 'bold' : 'normal';
     
     return [
       { content: test.name || test.description || '-', styles: { fontStyle: 'bold', fontSize: 10 } },
       { 
         content: value, 
         styles: { 
-          textColor: textColor, 
-          fillColor: bgColor,
-          fontStyle: isBold ? 'bold' : 'normal',
-          fontSize: isBold ? 10.5 : 10,
-          halign: 'center'
+          textColor: [0, 0, 0], // Always BLACK - no color coding
+          fillColor: [255, 255, 255], // Always WHITE background
+          fontStyle: fontStyle,
+          fontSize: fontSize,
+          halign: 'center',
+          cellPadding: isBold ? 5 : 4 // Extra padding for abnormal values
         } 
       },
       { content: test.unit || test.unit_snapshot || '-', styles: { halign: 'center', fontSize: 9.5 } },
@@ -324,20 +327,20 @@ const getTestStatus = (test) => {
 };
 
 /**
- * Get color based on status
+ * Get color based on status - ENHANCED for better visibility
  */
 const getStatusColor = (status) => {
-  if (status === 'HIGH') return [185, 28, 28]; // Red
-  if (status === 'LOW') return [29, 78, 216]; // Blue
+  if (status === 'HIGH') return [220, 38, 38]; // Bright Red for HIGH (more visible)
+  if (status === 'LOW') return [37, 99, 235]; // Bright Blue for LOW (more visible)
   return [0, 0, 0]; // Black
 };
 
 /**
- * Get background color based on status
+ * Get background color based on status - ENHANCED for better visibility
  */
 const getStatusBgColor = (status) => {
-  if (status === 'HIGH') return [254, 242, 242]; // Light red
-  if (status === 'LOW') return [239, 246, 255]; // Light blue
+  if (status === 'HIGH') return [254, 202, 202]; // Stronger red background (more noticeable)
+  if (status === 'LOW') return [191, 219, 254]; // Stronger blue background (more noticeable)
   return [255, 255, 255]; // White
 };
 

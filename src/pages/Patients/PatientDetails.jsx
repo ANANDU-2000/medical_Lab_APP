@@ -1320,19 +1320,32 @@ HEALit Med Laboratories`;
                   <button
                     className="action-btn print-btn"
                     onClick={async () => {
-                      const visitData = {
-                        ...visit,
-                        patient,
-                        tests: visit.tests,
-                        collectedAt: visit.collectedAt,
-                        receivedAt: visit.receivedAt,
-                        reportedAt: visit.reportedAt,
-                        paymentStatus: visit.paymentStatus,
-                        paymentMethod: visit.paymentMethod || 'Cash'
-                      };
-                      await generateCombinedInvoice(visitData, allProfiles, { download: false, print: true });
-                      setInvoiceActionDone(true);
-                      toast.success('🖨️ Invoice print dialog opened');
+                      const loadingToast = toast.loading('🖨️ Preparing invoice for print...');
+                      try {
+                        const visitData = {
+                          ...visit,
+                          visitId: visit.visitId || id,
+                          patient,
+                          tests: visit.tests,
+                          collectedAt: visit.collectedAt,
+                          receivedAt: visit.receivedAt,
+                          reportedAt: visit.reportedAt,
+                          paymentStatus: visit.paymentStatus,
+                          paymentMethod: visit.paymentMethod || 'Cash'
+                        };
+                        console.log('🖨️ Invoice Print - Visit Data:', visitData);
+                        const result = await generateCombinedInvoice(visitData, allProfiles, { download: false, print: true });
+                        console.log('🖨️ Invoice Print Result:', result);
+                        if (result && result.success) {
+                          setInvoiceActionDone(true);
+                          toast.success('🖨️ Invoice print dialog opened successfully!', { id: loadingToast });
+                        } else {
+                          toast.error('❌ Failed to print invoice: ' + (result?.error || 'Unknown error'), { id: loadingToast });
+                        }
+                      } catch (error) {
+                        console.error('❌ Invoice print error:', error);
+                        toast.error('❌ Print failed: ' + error.message, { id: loadingToast });
+                      }
                     }}
                   >
                     <Printer size={18} />
@@ -1343,19 +1356,32 @@ HEALit Med Laboratories`;
                   <button
                     className="action-btn download-btn"
                     onClick={async () => {
-                      const visitData = {
-                        ...visit,
-                        patient,
-                        tests: visit.tests,
-                        collectedAt: visit.collectedAt,
-                        receivedAt: visit.receivedAt,
-                        reportedAt: visit.reportedAt,
-                        paymentStatus: visit.paymentStatus,
-                        paymentMethod: visit.paymentMethod || 'Cash'
-                      };
-                      await generateCombinedInvoice(visitData, allProfiles, { download: true, print: false });
-                      setInvoiceActionDone(true);
-                      toast.success('⬇️ Invoice downloaded');
+                      const loadingToast = toast.loading('⬇️ Generating invoice PDF...');
+                      try {
+                        const visitData = {
+                          ...visit,
+                          visitId: visit.visitId || id,
+                          patient,
+                          tests: visit.tests,
+                          collectedAt: visit.collectedAt,
+                          receivedAt: visit.receivedAt,
+                          reportedAt: visit.reportedAt,
+                          paymentStatus: visit.paymentStatus,
+                          paymentMethod: visit.paymentMethod || 'Cash'
+                        };
+                        console.log('⬇️ Invoice Download - Visit Data:', visitData);
+                        const result = await generateCombinedInvoice(visitData, allProfiles, { download: true, print: false });
+                        console.log('⬇️ Invoice Download Result:', result);
+                        if (result && result.success) {
+                          setInvoiceActionDone(true);
+                          toast.success('✅ Invoice downloaded successfully!', { id: loadingToast });
+                        } else {
+                          toast.error('❌ Failed to download invoice: ' + (result?.error || 'Unknown error'), { id: loadingToast });
+                        }
+                      } catch (error) {
+                        console.error('❌ Invoice download error:', error);
+                        toast.error('❌ Download failed: ' + error.message, { id: loadingToast });
+                      }
                     }}
                   >
                     <Download size={18} />

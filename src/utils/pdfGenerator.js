@@ -183,11 +183,12 @@ export const generateReportPDF = async (visitData) => {
         { 
           content: testValue, 
           styles: { 
-            textColor: [0, 0, 0], // Always black - no color coding
-            fillColor: [255, 255, 255], // Always white background
+            textColor: [0, 0, 0], // Always BLACK - no color coding
+            fillColor: [255, 255, 255], // Always WHITE background
             fontStyle: isAbnormal ? 'bold' : 'normal',
-            fontSize: isAbnormal ? 11 : 9, // Larger and bold for abnormal, but NO color
-            halign: 'center'
+            fontSize: isAbnormal ? 13 : 9, // Larger font (13) for abnormal values
+            halign: 'center',
+            cellPadding: isAbnormal ? 5 : 4 // Extra padding for abnormal values
           } 
         },
         testUnit,

@@ -113,15 +113,16 @@ export const checkRangeStatus = (value, range) => {
 
 /**
  * Get color for status (RGB array for jsPDF)
+ * ENHANCED for better visibility of abnormal values
  * @param {string} status - 'HIGH', 'LOW', 'BOUNDARY', or 'NORMAL'
  * @returns {Array} - RGB array [r, g, b]
  */
 export const getStatusColor = (status) => {
   switch (status) {
     case 'HIGH':
-      return [176, 0, 32]; // Red #b00020
+      return [220, 38, 38]; // Bright Red for HIGH (more visible)
     case 'LOW':
-      return [29, 78, 216]; // Blue #1d4ed8
+      return [37, 99, 235]; // Bright Blue for LOW (more visible)
     case 'BOUNDARY':
       return [234, 88, 12]; // Orange #ea580c
     default:
@@ -131,15 +132,16 @@ export const getStatusColor = (status) => {
 
 /**
  * Get background color for status (RGB array for jsPDF)
+ * ENHANCED for better visibility of abnormal values
  * @param {string} status - 'HIGH', 'LOW', 'BOUNDARY', or 'NORMAL'
  * @returns {Array} - RGB array [r, g, b] or null
  */
 export const getStatusBgColor = (status) => {
   switch (status) {
     case 'HIGH':
-      return [254, 242, 242]; // Light red #fef2f2
+      return [254, 202, 202]; // Stronger red background (more noticeable)
     case 'LOW':
-      return [239, 246, 255]; // Light blue #eff6ff
+      return [191, 219, 254]; // Stronger blue background (more noticeable)
     case 'BOUNDARY':
       return [255, 247, 237]; // Light orange #fff7ed
     default:
