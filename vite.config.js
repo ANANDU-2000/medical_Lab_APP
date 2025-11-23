@@ -8,7 +8,7 @@ export default defineConfig({
   base: '/',
   server: {
     port: 3000,
-    open: true,
+    open: false, // DISABLED: Prevents EPERM error on Windows
     hmr: {
       overlay: true
     },

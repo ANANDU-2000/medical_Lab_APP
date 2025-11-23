@@ -75,18 +75,18 @@ function App() {
         // Initialize automatic browser cache clearing
         await initializeAutoClear();
         
-        // Check backend health
-        try {
-          const healthCheck = await apiService.healthCheck();
-          console.log('✅ Backend connection:', healthCheck.status);
-          
-          // Sync data with backend
-          await dataMigrationService.fullSync();
-          console.log('✅ Data synchronized with backend');
-        } catch (apiError) {
-          console.warn('⚠️ Backend unavailable, using local storage:', apiError.message);
-          // App will continue with localStorage only
-        }
+        // DISABLED: Backend health check - Using Firebase instead
+        // try {
+        //   const healthCheck = await apiService.healthCheck();
+        //   console.log('✅ Backend connection:', healthCheck.status);
+        //   
+        //   // Sync data with backend
+        //   await dataMigrationService.fullSync();
+        //   console.log('✅ Data synchronized with backend');
+        // } catch (apiError) {
+        //   console.warn('⚠️ Backend unavailable, using local storage:', apiError.message);
+        //   // App will continue with localStorage only
+        // }
         
         console.log('App initialization complete');
       } catch (error) {
