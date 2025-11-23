@@ -133,10 +133,69 @@ const Layout = () => {
 
   return (
     <div className="layout">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div className="mobile-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+      
+      {/* Mobile Slide-out Sidebar */}
+      <aside className={`mobile-sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="mobile-sidebar-header">
+          <div className="mobile-sidebar-logo">
+            {!logoError ? (
+              <img 
+                src={LOGO_PATHS.healit} 
+                alt="HEALit Logo" 
+                className="mobile-logo-image"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <span className="mobile-logo-fallback">🏥</span>
+            )}
+            <span className="mobile-app-name">HEALit Med Lab</span>
+          </div>
+          <button className="mobile-close-btn" onClick={() => setSidebarOpen(false)}>
+            <X size={24} />
+          </button>
+        </div>
+        
+        <nav className="mobile-nav">
+          {filteredMenu.map((item) => (
+            <button
+              key={item.path}
+              onClick={() => {
+                navigate(item.path);
+                setSidebarOpen(false);
+              }}
+              className={`mobile-nav-item ${location.pathname === item.path ? 'active' : ''}`}
+            >
+              <item.icon size={20} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        
+        <div className="mobile-sidebar-footer">
+          <div className="mobile-user-info">
+            <UserCircle size={20} />
+            <span>{user?.fullName || user?.username || 'User'}</span>
+          </div>
+          <button className="mobile-logout-btn" onClick={handleLogout}>
+            <LogOut size={18} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+      
       {/* Main Content - Full Width */}
       <div className="main-content full-width">
         {/* Compact Top Nav Header */}
         <header className="top-nav">
+          {/* Mobile Menu Button */}
+          <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>
+            <Menu size={24} />
+          </button>
+          
           {/* Left: Logo + App Name + Quick Nav */}
           <div className="nav-left">
             <div className="nav-logo">
@@ -306,6 +365,47 @@ const Layout = () => {
         <main className="content">
           <Outlet />
         </main>
+        
+        {/* Mobile Bottom Navigation */}
+        <nav className="mobile-bottom-nav">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className={`mobile-bottom-nav-item ${location.pathname === '/dashboard' ? 'active' : ''}`}
+          >
+            <LayoutDashboard size={20} />
+            <span>Dashboard</span>
+          </button>
+          <button
+            onClick={() => navigate('/patients')}
+            className={`mobile-bottom-nav-item ${location.pathname.includes('/patients') ? 'active' : ''}`}
+          >
+            <Users size={20} />
+            <span>Patients</span>
+          </button>
+          <button
+            onClick={() => navigate('/admin/profile-manager')}
+            className={`mobile-bottom-nav-item ${location.pathname.includes('/profile') ? 'active' : ''}`}
+          >
+            <Package size={20} />
+            <span>Profiles</span>
+          </button>
+          {role === 'admin' && (
+            <button
+              onClick={() => navigate('/financial')}
+              className={`mobile-bottom-nav-item ${location.pathname === '/financial' ? 'active' : ''}`}
+            >
+              <DollarSign size={20} />
+              <span>Finance</span>
+            </button>
+          )}
+          <button
+            onClick={() => navigate(role === 'admin' ? '/settings' : '/settings/staff')}
+            className={`mobile-bottom-nav-item ${location.pathname.includes('/settings') ? 'active' : ''}`}
+          >
+            <SettingsIcon size={20} />
+            <span>Settings</span>
+          </button>
+        </nav>
       </div>
     </div>
   );

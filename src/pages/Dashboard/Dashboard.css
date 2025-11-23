@@ -551,9 +551,22 @@
   }
 
   .dashboard-right {
-    /* Removed staff activity card, so only financial snapshot remains */
-    grid-template-columns: 1fr; /* Changed from repeat(2, 1fr) to 1fr */
-    flex-direction: column; /* Changed from row to column */
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dashboard {
+    padding: var(--space-4);
+  }
+  
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -561,16 +574,52 @@
   .dashboard {
     padding: var(--space-3);
   }
+  
+  .dashboard-header h1 {
+    font-size: 1.75rem;
+  }
+  
+  .dashboard-header p {
+    font-size: 0.9375rem;
+  }
 
-  /* Both admin and staff now have 2 columns by default, so this might not be strictly needed for .quick-actions-grid unless it was 3+ */
-  /* Re-evaluating based on original: admin quick-actions-grid was 3, now 2. Staff was 2, stays 2. */
-  /* So, if we want 1 column on small screens for quick actions, this needs to be here. */
   .quick-actions-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2);
+  }
+  
+  .action-card {
+    padding: var(--space-4);
+    min-height: 120px;
+  }
+  
+  .action-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: var(--space-2);
+  }
+  
+  .action-card h3 {
+    font-size: 0.9375rem;
+  }
+  
+  .action-card p {
+    font-size: 0.75rem;
   }
 
   .metrics-grid {
     grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+  
+  .metric-card {
+    padding: var(--space-4);
+    min-height: 90px;
+  }
+  
+  .metric-icon {
+    width: 48px;
+    height: 48px;
   }
 
   .dashboard-right {
@@ -579,7 +628,8 @@
   }
 
   .table-wrapper {
-    overflow-x: scroll;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .patients-table {
@@ -588,18 +638,121 @@
 }
 
 @media (max-width: 640px) {
+  .dashboard {
+    padding: var(--space-2);
+  }
+  
   .dashboard-header h1 {
     font-size: 1.5rem;
   }
+  
+  .dashboard-header p {
+    font-size: 0.875rem;
+  }
+  
+  .section-title {
+    font-size: 1.125rem;
+  }
 
+  .quick-actions-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+  
+  .action-card {
+    padding: var(--space-3);
+    min-height: 100px;
+    flex-direction: row;
+    text-align: left;
+    gap: var(--space-3);
+  }
+  
   .action-icon {
-    width: 70px;
-    height: 70px;
+    width: 56px;
+    height: 56px;
+    margin: 0;
+    flex-shrink: 0;
+  }
+  
+  .action-card h3 {
+    font-size: 1rem;
+  }
+  
+  .action-card p {
+    font-size: 0.75rem;
+  }
+  
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .metric-card {
+    padding: var(--space-3);
   }
 
   .metric-value {
+    font-size: 1.75rem;
+  }
+  
+  .metric-label {
+    font-size: 0.8125rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard {
+    padding: var(--space-2);
+  }
+  
+  .dashboard-header h1 {
+    font-size: 1.25rem;
+  }
+  
+  .dashboard-header p {
+    font-size: 0.8125rem;
+  }
+  
+  .section-title {
+    font-size: 1rem;
+  }
+  
+  .action-card {
+    padding: var(--space-2);
+    min-height: 80px;
+  }
+  
+  .action-icon {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .action-card h3 {
+    font-size: 0.875rem;
+  }
+  
+  .action-card p {
+    font-size: 0.6875rem;
+  }
+  
+  .metric-card {
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+  
+  .metric-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .metric-value {
     font-size: 1.5rem;
   }
-
-  /* Removed .chart-bars media query */
+  
+  .metric-label {
+    font-size: 0.75rem;
+  }
+  
+  .metric-change {
+    font-size: 0.6875rem;
+  }
 }
