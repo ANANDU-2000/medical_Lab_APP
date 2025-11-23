@@ -3,6 +3,13 @@
   background: linear-gradient(to bottom, #f8fafc 0%, #ffffff 100%);
   min-height: calc(100vh - 60px);
   padding: var(--space-6);
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.dashboard * {
+  box-sizing: border-box;
 }
 
 /* Dashboard Loading */
@@ -81,12 +88,15 @@
 /* Quick Actions Section */
 .quick-actions-section {
   margin-bottom: var(--space-2);
+  width: 100%;
+  overflow-x: hidden; /* Fix mobile horizontal overflow */
 }
 
 .quick-actions-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-3);
+  width: 100%; /* Ensure grid respects container width */
 }
 
 .action-card {
@@ -103,6 +113,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  width: 100%; /* Prevent overflow */
+  box-sizing: border-box; /* Include padding in width */
 }
 
 .action-card:hover {
@@ -147,12 +159,15 @@
 /* Key Metrics Section */
 .metrics-section {
   margin-bottom: var(--space-2);
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-3);
+  width: 100%;
 }
 
 .metric-card {
@@ -166,6 +181,8 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 2px solid #e2e8f0;
   min-height: 110px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .metric-card:hover {

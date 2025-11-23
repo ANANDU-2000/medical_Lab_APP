@@ -58,7 +58,12 @@ export const useAuthStore = create(
       }
     }),
     {
-      name: 'auth-storage'
+      name: 'auth-storage',
+      version: 1,
+      migrate: (persistedState, version) => {
+        // Migration function to prevent Zustand warning
+        return persistedState;
+      }
     }
   )
 );
@@ -135,7 +140,10 @@ export const usePatientStore = create(
     }),
     {
       name: 'patient-storage',
-      version: 1
+      version: 1,
+      migrate: (persistedState, version) => {
+        return persistedState;
+      }
     }
   )
 );
@@ -209,7 +217,10 @@ export const useTestResultStore = create(
     }),
     {
       name: 'test-result-storage',
-      version: 1
+      version: 1,
+      migrate: (persistedState, version) => {
+        return persistedState;
+      }
     }
   )
 );
@@ -271,7 +282,10 @@ export const useFinancialStore = create(
     }),
     {
       name: 'financial-storage',
-      version: 1
+      version: 1,
+      migrate: (persistedState, version) => {
+        return persistedState;
+      }
     }
   )
 );
@@ -298,7 +312,10 @@ export const useActivityStore = create(
     }),
     {
       name: 'activity-storage',
-      version: 1
+      version: 1,
+      migrate: (persistedState, version) => {
+        return persistedState;
+      }
     }
   )
 );
@@ -333,7 +350,10 @@ export const useSettingsStore = create(
     }),
     {
       name: 'settings-storage',
-      version: 1
+      version: 1,
+      migrate: (persistedState, version) => {
+        return persistedState;
+      }
     }
   )
 );
