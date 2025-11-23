@@ -125,6 +125,12 @@ router.post('/sync', async (req, res) => {
       await Settings.findOneAndUpdate({}, settings, { upsert: true, new: true });
     }
 
+    if (auditLogs && auditLogs.length > 0) {
+      await Promise.all(auditLogs.map(log =>
+        AuditLog.findOneAndUpdate({ logId: log.logId }, log, { upsert: true, new: true })
+      ));
+    }
+
     res.json({ success: true, message: 'Data synced successfully' });
   } catch (error) {
     console.error('Bulk sync error:', error);
