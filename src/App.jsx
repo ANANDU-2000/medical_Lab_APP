@@ -6,6 +6,7 @@ import { initializeSeedData } from './features/shared/dataService';
 import { initializeAuthData } from './services/authService';
 import { preloadCriticalImages } from './utils/assetPath';
 import { initializeAutoClear } from './utils/browserCacheManager';
+import { testFirebaseConnection } from './testFirebase'; // Firebase test
 import dataMigrationService from './services/dataMigrationService';
 import apiService from './services/apiService';
 
@@ -74,6 +75,9 @@ function App() {
         
         // Initialize automatic browser cache clearing
         await initializeAutoClear();
+        
+        // Test Firebase connection
+        await testFirebaseConnection();
         
         // DISABLED: Backend health check - Using Firebase instead
         // try {

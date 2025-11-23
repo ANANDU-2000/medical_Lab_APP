@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to all users for all collections
+    // In production, you should implement proper authentication and authorization
+    match /{document=**} {
+      allow read, write: if true;
+    }
+    
+    // Patients collection
+    match /patients/{patientId} {
+      allow read, write: if true;
+    }
+    
+    // Visits collection
+    match /visits/{visitId} {
+      allow read, write: if true;
+    }
+    
+    // Results collection
+    match /results/{visitId} {
+      allow read, write: if true;
+    }
+    
+    // Invoices collection
+    match /invoices/{invoiceId} {
+      allow read, write: if true;
+    }
+    
+    // Profiles collection
+    match /profiles/{profileId} {
+      allow read, write: if true;
+    }
+    
+    // Tests Master collection
+    match /testsMaster/{testId} {
+      allow read, write: if true;
+    }
+    
+    // Settings collection
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+    
+    // Audit Logs collection
+    match /auditLogs/{logId} {
+      allow read, write: if true;
+    }
+  }
+}
