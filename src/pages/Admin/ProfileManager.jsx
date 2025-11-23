@@ -18,7 +18,7 @@ const ProfileManager = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState(null);
   const [selectedProfiles, setSelectedProfiles] = useState([]);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -38,8 +38,9 @@ const ProfileManager = () => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setProfiles(getProfiles());
+  const loadData = async () => {
+    const profilesData = await getProfiles();
+    setProfiles(profilesData);
   };
 
   const filteredProfiles = profiles.filter(p =>
@@ -100,8 +101,8 @@ const ProfileManager = () => {
         const allProfiles = JSON.parse(localStorage.getItem('healit_profiles') || '[]');
         const index = allProfiles.findIndex(p => p.profileId === editingProfile.profileId);
         if (index !== -1) {
-          allProfiles[index] = { 
-            ...allProfiles[index], 
+          allProfiles[index] = {
+            ...allProfiles[index],
             ...profileData,
             updatedBy: currentUser?.userId || 'unknown',
             updatedByName: currentUser?.fullName || 'Unknown User',
@@ -197,7 +198,7 @@ const ProfileManager = () => {
   const updateTestInProfile = (testId, field, value) => {
     setFormData({
       ...formData,
-      tests: formData.tests.map(t => 
+      tests: formData.tests.map(t =>
         t.testId === testId ? { ...t, [field]: value } : t
       )
     });
@@ -274,8 +275,8 @@ const ProfileManager = () => {
       {/* Profiles Grid */}
       <div className="profiles-grid">
         {filteredProfiles.map(profile => (
-          <Card 
-            key={profile.profileId} 
+          <Card
+            key={profile.profileId}
             className={`profile-card ${selectedProfiles.includes(profile.profileId) ? 'selected' : ''}`}
           >
             <div className="profile-card-header">
@@ -392,7 +393,7 @@ const ProfileManager = () => {
 
               <div className="form-section">
                 <h3>Tests in Profile ({formData.tests.length})</h3>
-                
+
                 {formData.tests.length > 0 ? (
                   <div className="tests-table-wrapper">
                     <table className="tests-edit-table">

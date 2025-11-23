@@ -68,11 +68,11 @@ export const updateCategory = (id, updates) => {
 export const deleteCategory = (id) => {
   const expenses = getExpenses();
   const hasExpenses = expenses.some(e => e.categoryId === id);
-  
+
   if (hasExpenses) {
     throw new Error('Cannot delete category with linked expenses');
   }
-  
+
   const categories = getCategories().filter(c => c.id !== id);
   localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
   return true;
@@ -163,14 +163,14 @@ export const deleteReminder = (id) => {
 
 // ============= ANALYTICS =============
 
-export const getFinancialSummary = (range = 'month') => {
+export const getFinancialSummary = async (range = 'month') => {
   const expenses = getExpenses();
-  const allVisits = getVisits(); // Get visits separately
+  const allVisits = await getVisits(); // Get visits separately
   const now = new Date();
-  
+
   // Calculate date range
   let startDate, endDate, prevStartDate, prevEndDate;
-  
+
   if (range === 'month') {
     startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -195,7 +195,7 @@ export const getFinancialSummary = (range = 'month') => {
     prevEndDate = new Date(endDate);
     prevEndDate.setDate(endDate.getDate() - 1);
   }
-  
+
   // Calculate current period revenue - ONLY COUNT PAID VISITS
   const currentRevenue = allVisits.reduce((sum, visit) => {
     const visitDate = new Date(visit.createdAt);
@@ -205,7 +205,7 @@ export const getFinancialSummary = (range = 'month') => {
     }
     return sum;
   }, 0);
-  
+
   // Calculate previous period revenue - ONLY COUNT PAID VISITS
   const prevRevenue = allVisits.reduce((sum, visit) => {
     const visitDate = new Date(visit.createdAt);
@@ -215,7 +215,7 @@ export const getFinancialSummary = (range = 'month') => {
     }
     return sum;
   }, 0);
-  
+
   // Calculate current period expenses
   const currentExpenses = expenses.reduce((sum, expense) => {
     const expenseDate = new Date(expense.date);
@@ -224,7 +224,7 @@ export const getFinancialSummary = (range = 'month') => {
     }
     return sum;
   }, 0);
-  
+
   // Calculate previous period expenses
   const prevExpenses = expenses.reduce((sum, expense) => {
     const expenseDate = new Date(expense.date);
@@ -233,22 +233,22 @@ export const getFinancialSummary = (range = 'month') => {
     }
     return sum;
   }, 0);
-  
+
   // Calculate profit
   const currentProfit = currentRevenue - currentExpenses;
   const prevProfit = prevRevenue - prevExpenses;
-  
+
   // Calculate trends
-  const revenueTrend = prevRevenue > 0 
-    ? ((currentRevenue - prevRevenue) / prevRevenue) * 100 
+  const revenueTrend = prevRevenue > 0
+    ? ((currentRevenue - prevRevenue) / prevRevenue) * 100
     : 0;
-  const expensesTrend = prevExpenses > 0 
-    ? ((currentExpenses - prevExpenses) / prevExpenses) * 100 
+  const expensesTrend = prevExpenses > 0
+    ? ((currentExpenses - prevExpenses) / prevExpenses) * 100
     : 0;
-  const profitTrend = prevProfit !== 0 
-    ? ((currentProfit - prevProfit) / Math.abs(prevProfit)) * 100 
+  const profitTrend = prevProfit !== 0
+    ? ((currentProfit - prevProfit) / Math.abs(prevProfit)) * 100
     : 0;
-  
+
   // Get pending bills (reminders in next 7 days)
   const sevenDaysFromNow = new Date();
   sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
@@ -257,7 +257,7 @@ export const getFinancialSummary = (range = 'month') => {
     const reminderDate = new Date(r.date);
     return reminderDate <= sevenDaysFromNow && reminderDate >= now;
   }).length;
-  
+
   return {
     revenue: {
       current: currentRevenue,
@@ -278,14 +278,14 @@ export const getFinancialSummary = (range = 'month') => {
   };
 };
 
-export const getAnalyticsData = (range = 'month', customStart = null, customEnd = null) => {
+export const getAnalyticsData = async (range = 'month', customStart = null, customEnd = null) => {
   const expenses = getExpenses();
-  const allVisits = getVisits(); // Get visits separately
-  
+  const allVisits = await getVisits(); // Get visits separately
+
   // Generate date range
   let dataPoints = [];
   const now = new Date();
-  
+
   if (range === 'daily') {
     // Last 30 days
     for (let i = 29; i >= 0; i--) {
@@ -316,12 +316,12 @@ export const getAnalyticsData = (range = 'month', customStart = null, customEnd 
       });
     }
   }
-  
+
   // Calculate revenue and expenses for each period
   const chartData = dataPoints.map(point => {
     const pointDate = new Date(point.date);
     let periodStart, periodEnd;
-    
+
     if (range === 'daily') {
       periodStart = new Date(pointDate);
       periodStart.setHours(0, 0, 0, 0);
@@ -335,7 +335,7 @@ export const getAnalyticsData = (range = 'month', customStart = null, customEnd 
       periodStart = new Date(pointDate.getFullYear(), pointDate.getMonth(), 1);
       periodEnd = new Date(pointDate.getFullYear(), pointDate.getMonth() + 1, 0);
     }
-    
+
     // Calculate revenue - ONLY COUNT PAID VISITS
     const revenue = allVisits.reduce((sum, visit) => {
       const visitDate = new Date(visit.createdAt);
@@ -345,7 +345,7 @@ export const getAnalyticsData = (range = 'month', customStart = null, customEnd 
       }
       return sum;
     }, 0);
-    
+
     // Calculate expenses
     const expense = expenses.reduce((sum, exp) => {
       const expDate = new Date(exp.date);
@@ -354,7 +354,7 @@ export const getAnalyticsData = (range = 'month', customStart = null, customEnd 
       }
       return sum;
     }, 0);
-    
+
     return {
       label: point.label,
       revenue,
@@ -362,20 +362,20 @@ export const getAnalyticsData = (range = 'month', customStart = null, customEnd 
       profit: revenue - expense
     };
   });
-  
+
   return chartData;
 };
 
 export const getStaffExpensesSummary = () => {
   const expenses = getExpenses();
   const categories = getCategories();
-  
+
   // Group by staff
   const staffMap = {};
-  
+
   expenses.forEach(expense => {
     if (!expense.staffId) return;
-    
+
     if (!staffMap[expense.staffId]) {
       staffMap[expense.staffId] = {
         staffId: expense.staffId,
@@ -383,24 +383,24 @@ export const getStaffExpensesSummary = () => {
         categoryBreakdown: {}
       };
     }
-    
+
     staffMap[expense.staffId].totalExpenses += expense.amount;
-    
+
     const category = categories.find(c => c.id === expense.categoryId);
     const categoryName = category ? category.name : 'Unknown';
-    
+
     if (!staffMap[expense.staffId].categoryBreakdown[categoryName]) {
       staffMap[expense.staffId].categoryBreakdown[categoryName] = 0;
     }
     staffMap[expense.staffId].categoryBreakdown[categoryName] += expense.amount;
   });
-  
+
   return Object.values(staffMap);
 };
 
 export const filterExpenses = (filters = {}) => {
   let expenses = getExpenses();
-  
+
   // Filter by date range
   if (filters.startDate && filters.endDate) {
     const start = new Date(filters.startDate);
@@ -410,26 +410,26 @@ export const filterExpenses = (filters = {}) => {
       return expDate >= start && expDate <= end;
     });
   }
-  
+
   // Filter by category
   if (filters.categoryId) {
     expenses = expenses.filter(e => e.categoryId === filters.categoryId);
   }
-  
+
   // Filter by staff
   if (filters.staffId) {
     expenses = expenses.filter(e => e.staffId === filters.staffId);
   }
-  
+
   // Filter by search term
   if (filters.search) {
     const searchLower = filters.search.toLowerCase();
-    expenses = expenses.filter(e => 
+    expenses = expenses.filter(e =>
       e.description.toLowerCase().includes(searchLower) ||
       e.paidTo.toLowerCase().includes(searchLower)
     );
   }
-  
+
   // Filter by amount range
   if (filters.minAmount !== undefined) {
     expenses = expenses.filter(e => e.amount >= filters.minAmount);
@@ -437,6 +437,6 @@ export const filterExpenses = (filters = {}) => {
   if (filters.maxAmount !== undefined) {
     expenses = expenses.filter(e => e.amount <= filters.maxAmount);
   }
-  
+
   return expenses;
 };

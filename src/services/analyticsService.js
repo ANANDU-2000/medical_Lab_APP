@@ -5,14 +5,14 @@ import { getUsers } from './authService';
 /**
  * Get staff performance metrics
  */
-export const getStaffPerformance = (period = 'daily') => {
-  const patients = getPatients();
-  const visits = getVisits();
+export const getStaffPerformance = async (period = 'daily') => {
+  const patients = await getPatients();
+  const visits = await getVisits();
   const users = getUsers().filter(u => u.role === 'staff' && u.isActive);
-  
+
   const now = new Date();
   let startDate;
-  
+
   // Determine date range based on period
   switch (period) {
     case 'daily':
@@ -27,7 +27,7 @@ export const getStaffPerformance = (period = 'daily') => {
     default:
       startDate = new Date(0); // All time
   }
-  
+
   // Calculate metrics for each staff member
   const staffMetrics = users.map(staff => {
     // Filter patients added by this staff in the period
@@ -35,21 +35,21 @@ export const getStaffPerformance = (period = 'daily') => {
       const createdAt = new Date(p.createdAt);
       return p.addedBy === staff.userId && createdAt >= startDate;
     });
-    
+
     // Filter visits by this staff
     const staffVisits = visits.filter(v => {
       const createdAt = new Date(v.createdAt);
       return v.addedBy === staff.userId && createdAt >= startDate;
     });
-    
+
     // Calculate revenue from visits
     const revenue = staffVisits.reduce((sum, v) => sum + (v.finalAmount || 0), 0);
-    
+
     // Count completed reports
-    const completedReports = staffVisits.filter(v => 
+    const completedReports = staffVisits.filter(v =>
       v.status === 'completed' || v.status === 'results_entered'
     ).length;
-    
+
     return {
       userId: staff.userId,
       username: staff.username || staff.email.split('@')[0],
@@ -58,30 +58,30 @@ export const getStaffPerformance = (period = 'daily') => {
       testsPerformed: staffVisits.reduce((sum, v) => sum + (v.tests?.length || 0), 0),
       reportsGenerated: completedReports,
       revenue: revenue,
-      lastActive: staffVisits.length > 0 
-        ? staffVisits[staffVisits.length - 1].createdAt 
+      lastActive: staffVisits.length > 0
+        ? staffVisits[staffVisits.length - 1].createdAt
         : staff.updatedAt
     };
   });
-  
+
   // Sort by patients registered (descending)
   staffMetrics.sort((a, b) => b.patientsRegistered - a.patientsRegistered);
-  
+
   return staffMetrics;
 };
 
 /**
  * Get overall statistics
  */
-export const getOverallStats = () => {
-  const patients = getPatients();
-  const visits = getVisits();
-  
+export const getOverallStats = async () => {
+  const patients = await getPatients();
+  const visits = await getVisits();
+
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  
+
   return {
     today: {
       patients: patients.filter(p => new Date(p.createdAt) >= todayStart).length,
@@ -112,30 +112,31 @@ export const getOverallStats = () => {
 /**
  * Get activity timeline for a specific staff member
  */
-export const getStaffActivityTimeline = (userId, days = 7) => {
-  const visits = getVisits().filter(v => v.addedBy === userId);
+export const getStaffActivityTimeline = async (userId, days = 7) => {
+  const allVisits = await getVisits();
+  const visits = allVisits.filter(v => v.addedBy === userId);
   const timeline = [];
-  
+
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     date.setHours(0, 0, 0, 0);
-    
+
     const nextDate = new Date(date);
     nextDate.setDate(nextDate.getDate() + 1);
-    
+
     const dayVisits = visits.filter(v => {
       const visitDate = new Date(v.createdAt);
       return visitDate >= date && visitDate < nextDate;
     });
-    
+
     timeline.push({
       date: date.toISOString().split('T')[0],
       patients: dayVisits.length,
       revenue: dayVisits.reduce((sum, v) => sum + (v.finalAmount || 0), 0)
     });
   }
-  
+
   return timeline;
 };
 

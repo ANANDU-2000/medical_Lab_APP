@@ -24,7 +24,7 @@ const FinancialManagement = () => {
   const { role } = useAuthStore();
   const currentUser = getCurrentUser();
   const users = getUsers();
-  
+
   // State (MUST be before conditional return - React Hooks Rules)
   const [activeTab, setActiveTab] = useState('expenses');
   const [summary, setSummary] = useState(null);
@@ -33,7 +33,7 @@ const FinancialManagement = () => {
   const [reminders, setReminders] = useState([]);
   const [analyticsData, setAnalyticsData] = useState([]);
   const [staffExpenses, setStaffExpenses] = useState([]);
-  
+
   // Filters
   const [filters, setFilters] = useState({
     startDate: '',
@@ -45,14 +45,14 @@ const FinancialManagement = () => {
     maxAmount: ''
   });
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Modals
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
-  
+
   // Form states
   const [expenseForm, setExpenseForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -64,11 +64,11 @@ const FinancialManagement = () => {
     paymentMethod: 'Cash',
     attachmentUrl: ''
   });
-  
+
   const [categoryForm, setCategoryForm] = useState({
     name: ''
   });
-  
+
   const [reminderForm, setReminderForm] = useState({
     title: '',
     date: '',
@@ -77,53 +77,52 @@ const FinancialManagement = () => {
     viaEmail: false,
     viaWhatsApp: false
   });
-  
+
   const [analyticsRange, setAnalyticsRange] = useState('month');
   const [summaryRange, setSummaryRange] = useState('month');
-  
+
   // Helper functions wrapped in useCallback to avoid dependency warnings
-  const loadData = useCallback(() => {
-    setSummary(getFinancialSummary(summaryRange));
+  const loadData = useCallback(async () => {
+    const summaryData = await getFinancialSummary(summaryRange);
+    setSummary(summaryData);
     setExpenses(getExpenses());
     setCategories(getCategories());
     setReminders(getReminders());
     setStaffExpenses(getStaffExpensesSummary());
   }, [summaryRange]);
-  
-  const loadAnalytics = useCallback(() => {
-    const data = getAnalyticsData(analyticsRange);
+
+  const loadAnalytics = useCallback(async () => {
+    const data = await getAnalyticsData(analyticsRange);
     setAnalyticsData(data);
   }, [analyticsRange]);
-  
+
   const applyFilters = useCallback(() => {
-    // Only apply filters if any filter is set
-    const hasFilters = filters.startDate || filters.endDate || filters.categoryId || 
-                       filters.staffId || filters.search || filters.minAmount || filters.maxAmount;
-    
+    const hasFilters = filters.startDate || filters.endDate || filters.categoryId ||
+      filters.staffId || filters.search || filters.minAmount || filters.maxAmount;
+
     if (hasFilters) {
       const filtered = filterExpenses(filters);
       setExpenses(filtered);
     } else {
-      // No filters, load all expenses
       setExpenses(getExpenses());
     }
   }, [filters]);
-  
+
   // Load data
   useEffect(() => {
     loadData();
   }, [loadData]);
-  
+
   useEffect(() => {
     if (activeTab === 'analytics') {
       loadAnalytics();
     }
   }, [activeTab, loadAnalytics]);
-  
+
   useEffect(() => {
     applyFilters();
   }, [applyFilters]);
-  
+
   // Permission check (AFTER all hooks - React Hooks Rules)
   if (role !== 'admin') {
     return (
@@ -137,9 +136,7 @@ const FinancialManagement = () => {
       </div>
     );
   }
-  
-  // Remaining helper functions
-  
+
   const resetFilters = () => {
     setFilters({
       startDate: '',
@@ -152,19 +149,19 @@ const FinancialManagement = () => {
     });
     setExpenses(getExpenses());
   };
-  
+
   // Expense handlers
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     if (!expenseForm.categoryId || !expenseForm.amount) {
       toast.error('Category and amount are required');
       return;
     }
-    
+
     if (parseFloat(expenseForm.amount) <= 0) {
       toast.error('Amount must be greater than 0');
       return;
     }
-    
+
     try {
       if (editingExpense) {
         updateExpense(editingExpense.id, {
@@ -180,20 +177,21 @@ const FinancialManagement = () => {
         });
         toast.success('Expense added successfully');
       }
-      
+
       setShowExpenseModal(false);
       setEditingExpense(null);
       resetExpenseForm();
-      
+
       // Reload summary and expenses
-      setSummary(getFinancialSummary('month'));
+      const summaryData = await getFinancialSummary('month');
+      setSummary(summaryData);
       setExpenses(getExpenses());
       setStaffExpenses(getStaffExpensesSummary());
     } catch (error) {
       toast.error('Failed to save expense');
     }
   };
-  
+
   const handleEditExpense = (expense) => {
     setEditingExpense(expense);
     setExpenseForm({
@@ -208,19 +206,20 @@ const FinancialManagement = () => {
     });
     setShowExpenseModal(true);
   };
-  
-  const handleDeleteExpense = (id) => {
+
+  const handleDeleteExpense = async (id) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
       deleteExpense(id);
       toast.success('Expense deleted');
-      
+
       // Reload summary and expenses
-      setSummary(getFinancialSummary('month'));
+      const summaryData = await getFinancialSummary('month');
+      setSummary(summaryData);
       setExpenses(getExpenses());
       setStaffExpenses(getStaffExpensesSummary());
     }
   };
-  
+
   const resetExpenseForm = () => {
     setExpenseForm({
       date: new Date().toISOString().split('T')[0],
@@ -233,14 +232,14 @@ const FinancialManagement = () => {
       attachmentUrl: ''
     });
   };
-  
+
   // Category handlers
   const handleAddCategory = () => {
     if (!categoryForm.name.trim()) {
       toast.error('Category name is required');
       return;
     }
-    
+
     try {
       if (editingCategory) {
         updateCategory(editingCategory.id, { name: categoryForm.name });
@@ -249,7 +248,7 @@ const FinancialManagement = () => {
         addCategory({ name: categoryForm.name });
         toast.success('Category added');
       }
-      
+
       setShowCategoryModal(false);
       setEditingCategory(null);
       setCategoryForm({ name: '' });
@@ -258,7 +257,7 @@ const FinancialManagement = () => {
       toast.error('Failed to save category');
     }
   };
-  
+
   const handleDeleteCategory = (id) => {
     try {
       deleteCategory(id);
@@ -268,14 +267,14 @@ const FinancialManagement = () => {
       toast.error(error.message);
     }
   };
-  
+
   // Reminder handlers
   const handleAddReminder = () => {
     if (!reminderForm.title || !reminderForm.date) {
       toast.error('Title and date are required');
       return;
     }
-    
+
     try {
       addReminder({
         ...reminderForm,
@@ -296,7 +295,7 @@ const FinancialManagement = () => {
       toast.error('Failed to create reminder');
     }
   };
-  
+
   const handleDeleteReminder = (id) => {
     if (window.confirm('Delete this reminder?')) {
       deleteReminder(id);
@@ -304,11 +303,10 @@ const FinancialManagement = () => {
       loadData();
     }
   };
-  
+
   // Export handlers
   const handleExportExcel = () => {
     try {
-      // Create CSV content
       const headers = ['Date', 'Category', 'Description', 'Paid To', 'Amount', 'Staff', 'Payment Method'];
       const rows = expenses.map(expense => [
         new Date(expense.date).toLocaleDateString(),
@@ -319,18 +317,15 @@ const FinancialManagement = () => {
         getUserName(expense.staffId),
         expense.paymentMethod
       ]);
-  
-      // Add summary row
+
       const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
       rows.push(['', '', '', 'TOTAL', `Rs. ${totalExpenses.toLocaleString('en-IN')}`, '', '']);
-  
-      // Convert to CSV
+
       const csvContent = [
         headers.join(','),
         ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
       ].join('\n');
-  
-      // Create blob and download
+
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
@@ -341,51 +336,49 @@ const FinancialManagement = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-  
+
       toast.success('✅ Excel file downloaded successfully!');
     } catch (error) {
       console.error('Excel export error:', error);
       toast.error('❌ Failed to export Excel file');
     }
   };
-  
+
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF('p', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
       let yPos = 15;
-  
-      // Header
+
       doc.setFontSize(20);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
       doc.text('Financial Report', pageWidth / 2, yPos, { align: 'center' });
-  
+
       yPos += 8;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 100, 100);
       doc.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPos, { align: 'center' });
-  
+
       yPos += 10;
-  
-      // Summary Section
+
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
       doc.text('Financial Summary', 15, yPos);
-  
+
       yPos += 8;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-        
+
       const summaryData = [
         ['Total Revenue', `Rs. ${summary.revenue.current.toLocaleString('en-IN')}`],
         ['Total Expenses', `Rs. ${summary.expenses.current.toLocaleString('en-IN')}`],
         ['Net Profit', `Rs. ${summary.profit.current.toLocaleString('en-IN')}`],
         ['Pending Bills', summary.pendingBills.toString()]
       ];
-  
+
       doc.autoTable({
         startY: yPos,
         head: [['Item', 'Value']],
@@ -403,16 +396,15 @@ const FinancialManagement = () => {
           1: { cellWidth: 80, halign: 'right', fontStyle: 'bold' }
         }
       });
-  
+
       yPos = doc.lastAutoTable.finalY + 10;
-  
-      // Expenses Table
+
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text('Expense Details', 15, yPos);
-  
+
       yPos += 5;
-  
+
       const tableData = expenses.map(expense => [
         new Date(expense.date).toLocaleDateString(),
         getCategoryName(expense.categoryId),
@@ -421,11 +413,10 @@ const FinancialManagement = () => {
         `Rs. ${expense.amount.toLocaleString('en-IN')}`,
         expense.paymentMethod
       ]);
-  
-      // Add total row
+
       const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
       tableData.push(['', '', '', 'TOTAL', `Rs. ${totalExpenses.toLocaleString('en-IN')}`, '']);
-  
+
       doc.autoTable({
         startY: yPos,
         head: [['Date', 'Category', 'Description', 'Paid To', 'Amount', 'Method']],
@@ -453,15 +444,13 @@ const FinancialManagement = () => {
         },
         margin: { left: 15, right: 15 },
         didParseCell: (data) => {
-          // Make total row bold
           if (data.row.index === tableData.length - 1) {
             data.cell.styles.fontStyle = 'bold';
             data.cell.styles.fillColor = [220, 240, 255];
           }
         }
       });
-  
-      // Footer
+
       const pageCount = doc.internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -470,8 +459,7 @@ const FinancialManagement = () => {
         doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
         doc.text('HEALit Med Laboratories - Financial Management', pageWidth / 2, doc.internal.pageSize.getHeight() - 6, { align: 'center' });
       }
-  
-      // Save PDF
+
       doc.save(`Financial_Report_${new Date().toISOString().split('T')[0]}.pdf`);
       toast.success('✅ PDF downloaded successfully!');
     } catch (error) {
@@ -479,20 +467,18 @@ const FinancialManagement = () => {
       toast.error('❌ Failed to export PDF');
     }
   };
-  
-  // Get category name
+
   const getCategoryName = (categoryId) => {
     const category = categories.find(c => c.id === categoryId);
     return category ? category.name : 'Unknown';
   };
-  
-  // Get user name
+
   const getUserName = (userId) => {
     if (!userId) return '—';
     const user = users.find(u => u.userId === userId);
     return user ? user.fullName : 'Unknown';
   };
-  
+
   if (!summary) {
     return (
       <div className="loading-container">
@@ -501,7 +487,7 @@ const FinancialManagement = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="financial-management-page">
       {/* Page Header */}
@@ -512,19 +498,19 @@ const FinancialManagement = () => {
         </div>
         <div className="header-actions">
           <div className="range-selector">
-            <button 
+            <button
               className={`range-btn ${summaryRange === 'daily' ? 'active' : ''}`}
               onClick={() => setSummaryRange('daily')}
             >
               Today
             </button>
-            <button 
+            <button
               className={`range-btn ${summaryRange === 'week' ? 'active' : ''}`}
               onClick={() => setSummaryRange('week')}
             >
               This Week
             </button>
-            <button 
+            <button
               className={`range-btn ${summaryRange === 'month' ? 'active' : ''}`}
               onClick={() => setSummaryRange('month')}
             >
@@ -593,31 +579,31 @@ const FinancialManagement = () => {
       {/* SECTION 2 - Expenses Management Tabs */}
       <div className="finance-tabs-container">
         <div className="tabs-header">
-          <button 
+          <button
             className={`tab ${activeTab === 'expenses' ? 'active' : ''}`}
             onClick={() => setActiveTab('expenses')}
           >
             All Expenses
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'categories' ? 'active' : ''}`}
             onClick={() => setActiveTab('categories')}
           >
             Categories
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'staff-expenses' ? 'active' : ''}`}
             onClick={() => setActiveTab('staff-expenses')}
           >
             Staff Expenses
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
             onClick={() => setActiveTab('analytics')}
           >
             Analytics
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'reminders' ? 'active' : ''}`}
             onClick={() => setActiveTab('reminders')}
           >
@@ -748,8 +734,6 @@ const FinancialManagement = () => {
             </div>
           )}
 
-          {/* Remaining tabs will continue... */}
-          
           {/* TAB 2 - Categories */}
           {activeTab === 'categories' && (
             <div className="categories-tab">
@@ -782,7 +766,7 @@ const FinancialManagement = () => {
               </div>
             </div>
           )}
-          
+
           {/* TAB 3 - Staff Expenses */}
           {activeTab === 'staff-expenses' && (
             <div className="staff-expenses-tab">
@@ -823,7 +807,7 @@ const FinancialManagement = () => {
               </div>
             </div>
           )}
-          
+
           {/* TAB 4 - Analytics */}
           {activeTab === 'analytics' && (
             <div className="analytics-tab">
@@ -855,7 +839,7 @@ const FinancialManagement = () => {
               </div>
             </div>
           )}
-          
+
           {/* TAB 5 - Reminders */}
           {activeTab === 'reminders' && (
             <div className="reminders-tab">
@@ -1013,11 +997,11 @@ const FinancialManagement = () => {
               <div className="form-group checkbox-group">
                 <label>
                   <input type="checkbox" checked={reminderForm.viaEmail} onChange={(e) => setReminderForm({ ...reminderForm, viaEmail: e.target.checked })} />
-                  Send Email Alert
+                  Send via Email
                 </label>
                 <label>
                   <input type="checkbox" checked={reminderForm.viaWhatsApp} onChange={(e) => setReminderForm({ ...reminderForm, viaWhatsApp: e.target.checked })} />
-                  Send WhatsApp Alert
+                  Send via WhatsApp
                 </label>
               </div>
               <div className="modal-actions">

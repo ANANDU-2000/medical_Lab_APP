@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, TrendingUp, Plus, FileText, TestTube, 
+import {
+  Users, TrendingUp, Plus, FileText, TestTube,
   ArrowUpRight, ArrowDownRight, Eye, Edit, DollarSign,
   TrendingDown, Activity, AlertCircle, Clock, CheckCircle, XCircle
 } from 'lucide-react';
@@ -22,12 +22,12 @@ const Dashboard = () => {
   // Load dashboard data
   useEffect(() => {
     loadDashboardData();
-    
+
     // Listen for data updates
     const handleDataUpdate = () => {
       loadDashboardData();
     };
-    
+
     window.addEventListener('healit-data-update', handleDataUpdate);
     return () => window.removeEventListener('healit-data-update', handleDataUpdate);
   }, [role, user]);
@@ -35,12 +35,16 @@ const Dashboard = () => {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
+      console.log('Loading dashboard data for role:', role);
       if (role === 'admin') {
-        const data = getAdminDashboardData();
+        console.log('Fetching admin dashboard data...');
+        const data = await getAdminDashboardData();
+        console.log('Admin dashboard data received:', data);
         setDashboardData(data);
-        
+
         // Load alerts for admin - FIXED LOGIC
         const allVisits = await getVisits();
+        console.log('Visits loaded for alerts:', allVisits?.length);
         // WAITING = Sample collected, waiting for results entry (sample_times_set)
         const waitingPatients = allVisits.filter(v => v.status === 'sample_times_set');
         // UNPAID = Payment not received yet (check for undefined too)
@@ -48,18 +52,33 @@ const Dashboard = () => {
         // PENDING RESULTS = Sample times set but report not yet generated
         // (This includes both entering results AND generating report)
         const pendingResults = allVisits.filter(v => v.status === 'sample_times_set' && !v.reportedAt);
-        
+
         setAlerts({
           waiting: waitingPatients.slice(0, 5),
           unpaid: unpaidInvoices.slice(0, 5),
           pendingResults: pendingResults.slice(0, 5)
         });
       } else {
-        const data = getStaffDashboardData(user?.userId);
+        console.log('Fetching staff dashboard data for user:', user?.userId);
+        const data = await getStaffDashboardData(user?.userId);
+        console.log('Staff dashboard data received:', data);
         setDashboardData(data);
       }
+      console.log('Dashboard data loaded successfully');
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      console.error('Error stack:', error.stack);
+      // Set empty dashboard data to prevent infinite loading
+      setDashboardData({
+        patientsToday: 0,
+        totalPatientsMonth: 0,
+        revenueMonth: 0,
+        profitMonth: 0,
+        patientsListToday: [],
+        staffActivity: [],
+        revenue7days: [],
+        expenses7days: []
+      });
     } finally {
       setLoading(false);
     }
@@ -144,14 +163,14 @@ const Dashboard = () => {
                       <td>
                         <span className={`status-badge status-${patient.status.toLowerCase().replace('_', '-')}`}>
                           {patient.status === 'tests_selected' ? 'Registered' :
-                           patient.status === 'sample_times_set' ? 'Sample Collected' :
-                           patient.status === 'report_generated' ? 'Completed' : patient.status}
+                            patient.status === 'sample_times_set' ? 'Sample Collected' :
+                              patient.status === 'report_generated' ? 'Completed' : patient.status}
                         </span>
                       </td>
                       <td>
                         {patient.status === 'sample_times_set' && (
-                          <Button 
-                            size="small" 
+                          <Button
+                            size="small"
                             variant="primary"
                             onClick={() => navigate(`/results/${patient.visitId}`)}
                           >
@@ -159,8 +178,8 @@ const Dashboard = () => {
                           </Button>
                         )}
                         {patient.status === 'report_generated' && (
-                          <Button 
-                            size="small" 
+                          <Button
+                            size="small"
                             variant="secondary"
                             icon={Eye}
                             onClick={() => navigate(`/patients/${patient.visitId}`)}
@@ -334,14 +353,14 @@ const Dashboard = () => {
                         <td>
                           <span className={`status-badge status-${patient.status.toLowerCase().replace('_', '-')}`}>
                             {patient.status === 'tests_selected' ? 'Registered' :
-                             patient.status === 'sample_times_set' ? 'Sample Collected' :
-                             patient.status === 'report_generated' ? 'Completed' : patient.status}
+                              patient.status === 'sample_times_set' ? 'Sample Collected' :
+                                patient.status === 'report_generated' ? 'Completed' : patient.status}
                           </span>
                         </td>
                         <td>
                           {patient.status === 'sample_times_set' && (
-                            <Button 
-                              size="small" 
+                            <Button
+                              size="small"
                               variant="primary"
                               onClick={() => navigate(`/results/${patient.visitId}`)}
                             >
@@ -349,8 +368,8 @@ const Dashboard = () => {
                             </Button>
                           )}
                           {patient.status === 'report_generated' && (
-                            <Button 
-                              size="small" 
+                            <Button
+                              size="small"
                               variant="secondary"
                               icon={Eye}
                               onClick={() => navigate(`/patients/${patient.visitId}`)}

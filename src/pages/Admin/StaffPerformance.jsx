@@ -18,9 +18,9 @@ const StaffPerformance = () => {
     loadData();
   }, [period]);
 
-  const loadData = () => {
-    const metrics = getStaffPerformance(period);
-    const overallStats = getOverallStats();
+  const loadData = async () => {
+    const metrics = await getStaffPerformance(period);
+    const overallStats = await getOverallStats();
     setStaffMetrics(metrics);
     setStats(overallStats);
   };
